@@ -24,6 +24,15 @@ namespace Labb3_DB.ViewModels
 
         public int PopulationCost => _model.PopulationCost;
 
+        // For UI display of totals based on count
+        public double TotalIncome => _count > 0 ? _model.BaseIncome * _count : _model.BaseIncome;
+
+        public int TotalMaxPopulation => _count > 0 ? _model.MaxPopulation * _count : _model.MaxPopulation;
+
+        public int TotalPopulationCost => _count > 0 ? _model.PopulationCost * _count : _model.PopulationCost;
+
+        public double TotalHappinessIncrease => _count > 0 ? _model.HappinessIncrease * _count : _model.HappinessIncrease;
+
         private int _count;
         public int Count
             {

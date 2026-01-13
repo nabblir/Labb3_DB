@@ -93,7 +93,14 @@ namespace Labb3_DB.Mongo
             {
             return await _buildingsCollection.Find(_ => true).ToListAsync();
             }
-
+        /// <summary>
+        /// Return buildings by name
+        /// </summary>
+        public async Task<Building?> GetBuildingByNameAsync(string name)
+            {
+            var filter = Builders<Building>.Filter.Eq(b => b.Name, name);
+            return await _buildingsCollection.Find(filter).FirstOrDefaultAsync();
+            }
         /// <summary>
         /// Unique building types for shop filtering
         /// </summary>

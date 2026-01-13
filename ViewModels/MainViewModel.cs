@@ -1,15 +1,11 @@
 ﻿using Labb3_DB.Commands;
+using Labb3_DB.Data;
 using Labb3_DB.Models;
 using Labb3_DB.Mongo;
 using Labb3_DB.ViewModels;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Timers;
 using System.Windows;
-using System.Windows.Documents;
 using System.Windows.Input;
-using Labb3_DB.Data;
-using Microsoft.Xaml.Behaviors;
 
 public class MainViewModel : BaseViewModel
     {
@@ -17,67 +13,73 @@ public class MainViewModel : BaseViewModel
     private Kingdom _currentKingdom;
     private PeriodicTimer _gameTick;
     private PeriodicTimer _saveTimer;
-    // UI properties
+
     private string _kingdomName;
     public string KingdomName
         {
         get => _kingdomName;
         set => SetProperty(ref _kingdomName, value);
         }
+
     private double _gold;
     public double Gold
         {
         get => _gold;
         set => SetProperty(ref _gold, value);
         }
-    private double _goldPerSecond;
 
+    private double _goldPerSecond;
     public double GoldPerSecond
         {
         get => _goldPerSecond;
         set => SetProperty(ref _goldPerSecond, value);
         }
+
     private int _population;
     public int Population
         {
         get => _population;
         set => SetProperty(ref _population, value);
         }
+
     private int _maxPopulation;
     public int MaxPopulation
         {
         get => _maxPopulation;
         set => SetProperty(ref _maxPopulation, value);
         }
+
     private string _eventsLog;
     public string EventsLog
         {
         get => _eventsLog;
         set => SetProperty(ref _eventsLog, value);
         }
+
     private float _happinessDecrease;
     public float HappinessDecrease
         {
         get => _happinessDecrease;
         set => SetProperty(ref _happinessDecrease, value);
         }
+
     private float _happinessIncrease;
     public float HappinessIncrease
         {
         get => _happinessIncrease;
         set => SetProperty(ref _happinessIncrease, value);
         }
+
     private float _happiness;
     public float Happiness
         {
         get => _happiness;
         set => SetProperty(ref _happiness, value);
         }
-    // Collections ListViews
+
     public ObservableCollection<BuildingViewModel> Buildings { get; set; }
     public ObservableCollection<BuildingViewModel> ShopBuildings { get; set; }
 
-    // Buttons commands
     public ICommand BuyBuildingCommand { get; }
     public ICommand SaveGameCommand { get; }
     public ICommand ResetKingdomCommand { get; }
@@ -85,22 +87,15 @@ public class MainViewModel : BaseViewModel
     public MainViewModel()
         {
         _dbService = new DatabaseService();
-
-        // Initiera collections
         Buildings = new ObservableCollection<BuildingViewModel>();
         ShopBuildings = new ObservableCollection<BuildingViewModel>();
 
-        // Init commands
         BuyBuildingCommand = new RelayCommand(async (param) => await BuyBuilding(param));
         SaveGameCommand = new RelayCommand(async (_) => await SaveGameTimerAsync());
         ResetKingdomCommand = new RelayCommand(async (_) => await ResetKingdom());
 
-        // Ladda data SIST - detta måste vara async
         _ = LoadGameDataAsync();
-
         }
-
-
 
     private async Task LoadGameDataAsync()
         {
@@ -116,36 +111,37 @@ public class MainViewModel : BaseViewModel
                 KingdomName = _currentKingdom.KingdomName;
                 GoldPerSecond = _currentKingdom.GoldPerSecond;
                 Population = _currentKingdom.Population;
+                MaxPopulation = _currentKingdom.MaxPopulation;
                 Happiness = _currentKingdom.Happiness;
+                HappinessDecrease = _currentKingdom.HappinessDecrease;
+                HappinessIncrease = _currentKingdom.HappinessIncrease;
+                EventsLog = _currentKingdom.EventsLog ?? "";
                 LogEvent($"Kingdom {_currentKingdom.KingdomName} loaded successfully!");
                 }
 
             var ownedBuildings = await _dbService.GetAllBuildingsAsync();
-
             var shopBuildings = ShopData.GetShopBuildings();
-
-            foreach (var ownedBuilding in ownedBuildings)
-                {
-                var shopBuilding = shopBuildings.Find(b => b.Name == ownedBuilding.Name);
-                if (shopBuilding != null)
-                    {
-                    shopBuilding.Count = ownedBuilding.Count;
-                    shopBuilding.Level = ownedBuilding.Level;
-                    }
-                }
 
             Buildings.Clear();
             ShopBuildings.Clear();
 
-
-            foreach (var building in shopBuildings)
+            foreach (var shopBuilding in shopBuildings)
                 {
-                ShopBuildings.Add(new BuildingViewModel(building));
-                }
+                var owned = ownedBuildings.FirstOrDefault(b => b.Name == shopBuilding.Name);
 
-            foreach (var building in shopBuildings.Where(b => b.Count > 0))
-                {
-                Buildings.Add(new BuildingViewModel(building));
+                if (owned != null)
+                    {
+                    var vm = new BuildingViewModel(owned);
+                    ShopBuildings.Add(vm);
+                    if (owned.Count > 0)
+                        {
+                        Buildings.Add(vm);
+                        }
+                    }
+                else
+                    {
+                    ShopBuildings.Add(new BuildingViewModel(shopBuilding));
+                    }
                 }
 
             _gameTick = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -153,8 +149,6 @@ public class MainViewModel : BaseViewModel
 
             _saveTimer = new PeriodicTimer(TimeSpan.FromSeconds(10));
             _ = SaveGameTimerAsync();
-
-
             }
         catch (Exception ex)
             {
@@ -162,6 +156,7 @@ public class MainViewModel : BaseViewModel
             MessageBox.Show($"Failed to load game: {ex.Message}");
             }
         }
+
     private void LogEvent(string message)
         {
         var timestamp = DateTime.Now.ToString("HH:mm:ss");
@@ -180,33 +175,46 @@ public class MainViewModel : BaseViewModel
 
     private async Task BuyBuilding(object? parameter)
         {
-
         var building = parameter as BuildingViewModel;
-        if (Gold >= building.CurrentCost && 
-            Population + building.PopulationCost <= MaxPopulation)
+        if (building == null)
+            return;
+
+        if (Gold < building.CurrentCost)
             {
-            // TODO: Implement buy logic
-            if (Buildings.Contains(building))
-                {
-                LogEvent($"Bought another {building.Name}");
-                await _dbService.UpdateBuildingAsync(building.Model);
-                }
-            else
-                {
-                Buildings.Add(building);
-                LogEvent($"Bought a {building.Name}");
-                await _dbService.CreateBuildingAsync(building.Model);
-                }
-            UpdateStats(building, building.CurrentCost);
+            LogEvent($"Not enough gold to buy {building.Name}!");
+            return;
             }
+
+        if (Population + building.PopulationCost > MaxPopulation)
+            {
+            LogEvent($"Not enough population capacity for {building.Name}!");
+            return;
+            }
+
+        Gold -= building.CurrentCost;
+        _currentKingdom.Gold = Gold;
+
+        if (building.Model.Id != null)
+            {
+            building.Count++;
+            await _dbService.UpdateBuildingAsync(building.Model);
+            LogEvent($"Bought another {building.Name}");
+            }
+        else
+            {
+            building.Count = 1;
+            await _dbService.CreateBuildingAsync(building.Model);
+            Buildings.Add(building);
+            LogEvent($"Bought a {building.Name}");
+            }
+
+        UpdateStats(building);
         }
 
     private async Task ResetKingdom()
         {
         var result = MessageBox.Show(
-            "Are you sure you want to reset your kingdom?\n\n" +
-            "This will delete ALL your progress!\n" +
-            "This action cannot be undone!",
+            "Are you sure you want to reset your kingdom?\n\nThis will delete ALL your progress!\nThis action cannot be undone!",
             "⚠ Confirm Reset",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning
@@ -217,6 +225,7 @@ public class MainViewModel : BaseViewModel
             try
                 {
                 _gameTick?.Dispose();
+                _saveTimer?.Dispose();
 
                 if (_currentKingdom?.Id != null)
                     {
@@ -225,7 +234,6 @@ public class MainViewModel : BaseViewModel
                 await _dbService.DeleteAllBuildingsAsync();
 
                 LogEvent("Kingdom reset! Restarting application...");
-
                 await Task.Delay(1000);
 
                 System.Diagnostics.Process.Start(
@@ -239,78 +247,66 @@ public class MainViewModel : BaseViewModel
                 }
             }
         }
-    private void UpdateStats(BuildingViewModel building, double GoldAmount = 0)
-        {
-        //foreach (var building in Buildings)
-            {
-            if (building.HappinessDecrease != 0)
-                {
-                _currentKingdom.HappinessDecrease += building.HappinessDecrease;
-                }
-            if (building.HappinessIncrease != 0)
-                {
-                _currentKingdom.HappinessIncrease += building.HappinessIncrease;
-                }
-            if (building.BaseIncome != 0)
-                {
-                _currentKingdom.GoldPerSecond += building.BaseIncome;
-                //UI update
-                GoldPerSecond = _currentKingdom.GoldPerSecond;
-                }
-            if (building.MaxPopulation != 0)
-                {
-                _currentKingdom.MaxPopulation += building.MaxPopulation;
-                //UI update
-                MaxPopulation = _currentKingdom.MaxPopulation;
-                }
-            if (building.PopulationCost != 0)
-                {
-                _currentKingdom.Population += building.PopulationCost;
-                //UI update
-                Population = _currentKingdom.Population;
-                }
-            }
-        building.Count++;
-        _currentKingdom.Gold -= GoldAmount;
-        Gold = _currentKingdom.Gold;
-        }
 
-    #region Timers
+    private void UpdateStats(BuildingViewModel building)
+        {
+        if (building.HappinessDecrease != 0)
+            {
+            _currentKingdom.HappinessDecrease += building.HappinessDecrease;
+            HappinessDecrease = _currentKingdom.HappinessDecrease;
+            }
+
+        if (building.HappinessIncrease != 0)
+            {
+            _currentKingdom.HappinessIncrease += building.HappinessIncrease;
+            HappinessIncrease = _currentKingdom.HappinessIncrease;
+            }
+
+        if (building.BaseIncome != 0)
+            {
+            _currentKingdom.GoldPerSecond += building.BaseIncome;
+            GoldPerSecond = _currentKingdom.GoldPerSecond;
+            }
+
+        if (building.MaxPopulation != 0)
+            {
+            _currentKingdom.MaxPopulation += building.MaxPopulation;
+            MaxPopulation = _currentKingdom.MaxPopulation;
+            }
+
+        if (building.PopulationCost != 0)
+            {
+            _currentKingdom.Population += building.PopulationCost;
+            Population = _currentKingdom.Population;
+            }
+        }
 
     private async Task GameTick()
         {
         while (await _gameTick.WaitForNextTickAsync())
             {
-            //DB update
             _currentKingdom.Gold += _currentKingdom.GoldPerSecond;
-            _currentKingdom.Happiness = _currentKingdom.Happiness - (_currentKingdom.HappinessDecrease + _currentKingdom.HappinessIncrease);
+            _currentKingdom.Happiness = _currentKingdom.Happiness - ( _currentKingdom.HappinessDecrease + _currentKingdom.HappinessIncrease );
             _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
-            Debug.WriteLine($"{_currentKingdom.Happiness} -- {_currentKingdom.HappinessDecrease}");
 
-            //UI update
             Happiness = _currentKingdom.Happiness;
             Gold = _currentKingdom.Gold;
-            MaxPopulation = _currentKingdom.MaxPopulation;
             }
         }
+
     private async Task SaveGameTimerAsync()
         {
-        // TODO: Implement save logic
         while (await _saveTimer.WaitForNextTickAsync())
             {
             if (_currentKingdom?.Id != null)
                 {
-
                 _currentKingdom.Gold = Gold;
                 _currentKingdom.GoldPerSecond = GoldPerSecond;
                 _currentKingdom.Population = Population;
                 _currentKingdom.Happiness = Happiness;
                 _currentKingdom.EventsLog = EventsLog;
                 await _dbService.UpdateKingdomAsync(_currentKingdom);
-
                 }
             }
         }
-
-    #endregion
     }
