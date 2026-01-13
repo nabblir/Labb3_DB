@@ -17,6 +17,12 @@ namespace Labb3_DB.ViewModels
 
         public string BuildingType => _model.BuildingType;
 
+        public float HappinessDecrease => _model.HappinessDecrease;
+        public float HappinessIncrease => _model.HappinessIncrease;
+        public double BaseIncome => _model.BaseIncome;
+        public int MaxPopulation => _model.MaxPopulation;
+
+        public int PopulationCost => _model.PopulationCost;
 
         private int _count;
         public int Count

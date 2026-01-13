@@ -3,6 +3,8 @@ using Labb3_DB.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Windows.Documents;
+using Labb3_DB.ViewModels;
 
 namespace Labb3_DB.Mongo
     {
@@ -154,7 +156,10 @@ namespace Labb3_DB.Mongo
                 Gold = 5,
                 GoldPerSecond = .5f,
                 Population = 1,
-                Happiness = 50f
+                MaxPopulation = 5,
+                Happiness = 50,
+                HappinessDecrease = 0.01f,
+                HappinessIncrease = 0
                 };
 
             await CreateKingdomAsync(kingdom);

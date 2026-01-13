@@ -43,13 +43,30 @@ public class MainViewModel : BaseViewModel
         get => _population;
         set => SetProperty(ref _population, value);
         }
+    private int _maxPopulation;
+    public int MaxPopulation
+        {
+        get => _maxPopulation;
+        set => SetProperty(ref _maxPopulation, value);
+        }
     private string _eventsLog;
     public string EventsLog
         {
         get => _eventsLog;
         set => SetProperty(ref _eventsLog, value);
         }
-
+    private float _happinessDecrease;
+    public float HappinessDecrease
+        {
+        get => _happinessDecrease;
+        set => SetProperty(ref _happinessDecrease, value);
+        }
+    private float _happinessIncrease;
+    public float HappinessIncrease
+        {
+        get => _happinessIncrease;
+        set => SetProperty(ref _happinessIncrease, value);
+        }
     private float _happiness;
     public float Happiness
         {
@@ -160,10 +177,28 @@ public class MainViewModel : BaseViewModel
             _currentKingdom.EventsLog = EventsLog;
             }
         }
+
     private async Task BuyBuilding(object? parameter)
         {
+
         var building = parameter as BuildingViewModel;
-        // TODO: Implement buy logic
+        if (Gold >= building.CurrentCost && 
+            Population + building.PopulationCost <= MaxPopulation)
+            {
+            // TODO: Implement buy logic
+            if (Buildings.Contains(building))
+                {
+                LogEvent($"Bought another {building.Name}");
+                await _dbService.UpdateBuildingAsync(building.Model);
+                }
+            else
+                {
+                Buildings.Add(building);
+                LogEvent($"Bought a {building.Name}");
+                await _dbService.CreateBuildingAsync(building.Model);
+                }
+            UpdateStats(building, building.CurrentCost);
+            }
         }
 
     private async Task ResetKingdom()
@@ -204,7 +239,41 @@ public class MainViewModel : BaseViewModel
                 }
             }
         }
-
+    private void UpdateStats(BuildingViewModel building, double GoldAmount = 0)
+        {
+        //foreach (var building in Buildings)
+            {
+            if (building.HappinessDecrease != 0)
+                {
+                _currentKingdom.HappinessDecrease += building.HappinessDecrease;
+                }
+            if (building.HappinessIncrease != 0)
+                {
+                _currentKingdom.HappinessIncrease += building.HappinessIncrease;
+                }
+            if (building.BaseIncome != 0)
+                {
+                _currentKingdom.GoldPerSecond += building.BaseIncome;
+                //UI update
+                GoldPerSecond = _currentKingdom.GoldPerSecond;
+                }
+            if (building.MaxPopulation != 0)
+                {
+                _currentKingdom.MaxPopulation += building.MaxPopulation;
+                //UI update
+                MaxPopulation = _currentKingdom.MaxPopulation;
+                }
+            if (building.PopulationCost != 0)
+                {
+                _currentKingdom.Population += building.PopulationCost;
+                //UI update
+                Population = _currentKingdom.Population;
+                }
+            }
+        building.Count++;
+        _currentKingdom.Gold -= GoldAmount;
+        Gold = _currentKingdom.Gold;
+        }
 
     #region Timers
 
@@ -214,13 +283,14 @@ public class MainViewModel : BaseViewModel
             {
             //DB update
             _currentKingdom.Gold += _currentKingdom.GoldPerSecond;
-            _currentKingdom.Happiness -= 0.1f;
+            _currentKingdom.Happiness = _currentKingdom.Happiness - (_currentKingdom.HappinessDecrease + _currentKingdom.HappinessIncrease);
             _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
-
+            Debug.WriteLine($"{_currentKingdom.Happiness} -- {_currentKingdom.HappinessDecrease}");
 
             //UI update
             Happiness = _currentKingdom.Happiness;
             Gold = _currentKingdom.Gold;
+            MaxPopulation = _currentKingdom.MaxPopulation;
             }
         }
     private async Task SaveGameTimerAsync()
@@ -230,12 +300,14 @@ public class MainViewModel : BaseViewModel
             {
             if (_currentKingdom?.Id != null)
                 {
+
                 _currentKingdom.Gold = Gold;
                 _currentKingdom.GoldPerSecond = GoldPerSecond;
                 _currentKingdom.Population = Population;
                 _currentKingdom.Happiness = Happiness;
                 _currentKingdom.EventsLog = EventsLog;
                 await _dbService.UpdateKingdomAsync(_currentKingdom);
+
                 }
             }
         }

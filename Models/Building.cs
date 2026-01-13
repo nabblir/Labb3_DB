@@ -30,12 +30,21 @@ namespace Labb3_DB.Models
         [BsonElement("baseIncome")]
         public double BaseIncome { get; set; }
 
+        [BsonElement("happinessDecrease")]
+        public float HappinessDecrease { get; set; }
+        
+        [BsonElement("happinessIncrease")]
+        public float HappinessIncrease { get; set; }
+        
         [BsonElement("costMultiplier")]
         public double CostMultiplier { get; set; } = 1.15;
 
         [BsonElement("populationCost")]
         public int PopulationCost { get; set; } = 0;
-
+        
+        [BsonElement("maxPopulation")]
+        public int MaxPopulation { get; set; } = 0;
+        
         [BsonElement("buildingType")]
         public string BuildingType { get; set; } = string.Empty; // "Production", "Housing", "Entertainment"
 

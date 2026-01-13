@@ -24,7 +24,7 @@
         <!-- Left Column with 2 Cards -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="450"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
@@ -61,6 +61,11 @@
                     <TextBlock Text="{Binding Population}" 
                               Style="{StaticResource MaterialDesignHeadline6TextBlock}"
                               Margin="0,0,0,15"/>
+                    <TextBlock Text="Max Population" 
+                              Style="{StaticResource MaterialDesignBody2TextBlock}"/>
+                    <TextBlock Text="{Binding MaxPopulation}" 
+                              Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                              Margin="0,0,0,15"/>
 
                     <TextBlock Text="Happiness" 
                               Style="{StaticResource MaterialDesignBody2TextBlock}"/>
@@ -83,7 +88,7 @@
                 <StackPanel>
                     <TextBlock Text="Actions" 
                               Style="{StaticResource MaterialDesignHeadline5TextBlock}"
-                              Margin="0,0,0,20" HorizontalAlignment="Center"/>
+                              Margin="0,0,0,10" HorizontalAlignment="Center"/>
 
                     <Button Content="💾 Save Game" 
                            Margin="0,5"
@@ -214,8 +219,8 @@
 
                 <TextBlock Text="Events Log" 
                           Style="{StaticResource MaterialDesignBody1TextBlock}"
-                          Margin="0,10,0,5" HorizontalAlignment="Center"/>
-                <ScrollViewer Height="60" VerticalScrollBarVisibility="Auto">
+                          Margin="0,0,0,0" HorizontalAlignment="Center"/>
+                <ScrollViewer Height="230" VerticalScrollBarVisibility="Auto">
                     <TextBlock Text="{Binding EventsLog}" 
                               TextWrapping="Wrap"
                               Style="{StaticResource MaterialDesignBody2TextBlock}"/>

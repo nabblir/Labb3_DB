@@ -18,6 +18,7 @@ namespace Labb3_DB.Data
                     BaseIncome = 0.5,
                     BuildingType = "Production",
                     PopulationCost = 1,
+                    HappinessDecrease = 0.01f,
                     Count = 0,
                     Level = 1
                 },
@@ -29,6 +30,7 @@ namespace Labb3_DB.Data
                     BaseIncome = 2.5,
                     BuildingType = "Production",
                     PopulationCost = 2,
+                    HappinessDecrease = 0.03f,
                     Count = 0,
                     Level = 1
                 },
@@ -39,7 +41,7 @@ namespace Labb3_DB.Data
                     BaseCost = 25,
                     BaseIncome = 0,
                     BuildingType = "Housing",
-                    PopulationCost = -5,
+                    MaxPopulation = 5,
                     Count = 0,
                     Level = 1
                 },
@@ -48,7 +50,7 @@ namespace Labb3_DB.Data
                     Name = "Tavern",
                     Description = "Keeps citizens happy\nProduces 0.25 happiness per second",
                     BaseCost = 75,
-                    BaseIncome = 1,
+                    HappinessIncrease = 0.25f,
                     BuildingType = "Entertainment",
                     PopulationCost = 1,
                     Count = 0,
@@ -57,11 +59,23 @@ namespace Labb3_DB.Data
                 new Building
                 {
                     Name = "Castle",
-                    Description = "The heart of your kingdom\nProduces 5 gold per second and 25 population",
-                    BaseCost = 1500,
-                    BaseIncome = 5,
-                    BuildingType = "Production",
-                    PopulationCost = -25,
+                    Description = "The heart of your kingdom\nProduces 50 gold per second and increases population by 125",
+                    BaseCost = 15000,
+                    BaseIncome = 50,
+                    BuildingType = "Housing",
+                    MaxPopulation = 125,
+                    Count = 0,
+                    Level = 1
+                },
+                new Building
+                {
+                    Name = "Brothel",
+                    Description = "Keeps citizens even more happy\nProduces 3 happiness per second and 10 gold per second",
+                    BaseCost = 7500,
+                    HappinessIncrease = 3,
+                    BaseIncome = 10,
+                    BuildingType = "Entertainment",
+                    PopulationCost = 1,
                     Count = 0,
                     Level = 1
                 }
