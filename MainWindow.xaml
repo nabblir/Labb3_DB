@@ -29,25 +29,28 @@
             </Grid.RowDefinitions>
 
             <!-- Top Left Card - Kingdom Overview -->
-            <materialDesign:Card Grid.Row="0" Margin="10" Padding="15" 
+            <materialDesign:Card Grid.Row="0" Margin="5" Padding="5" 
                          Background="#4A5568" BorderBrush="Black">
                 <StackPanel>
                     <TextBlock Text="Kingdom Overview" 
                               Style="{StaticResource MaterialDesignHeadline5TextBlock}"
-                              Margin="0,0,0,20"/>
+                              Margin="0,0,0,5" HorizontalAlignment="Center"/>
 
+                    <TextBlock Text="{Binding KingdomName}" 
+                              Style="{StaticResource MaterialDesignBody2TextBlock}"
+                              Foreground="FloralWhite"
+                              Margin="0,0,0,10" HorizontalAlignment="Center"/>
+                    
                     <TextBlock Text="Gold" 
                               Style="{StaticResource MaterialDesignBody2TextBlock}"/>
-                    <TextBlock x:Name="GoldText" 
-                              Text="0" 
+                    <TextBlock Text="{Binding Gold, StringFormat={}{0:F0}}" 
                               Style="{StaticResource MaterialDesignHeadline4TextBlock}"
-                              Foreground="{DynamicResource PrimaryHueMidBrush}"
+                              Foreground="Gold"
                               Margin="0,0,0,15"/>
 
                     <TextBlock Text="Gold/Second" 
                               Style="{StaticResource MaterialDesignBody2TextBlock}"/>
-                    <TextBlock x:Name="GoldPerSecText" 
-                              Text="0/sec" 
+                    <TextBlock Text="{Binding GoldPerSecond, StringFormat={}{0:F1}/sec}" 
                               Style="{StaticResource MaterialDesignHeadline6TextBlock}"
                               Margin="0,0,0,15"/>
 
@@ -55,68 +58,75 @@
 
                     <TextBlock Text="Population" 
                               Style="{StaticResource MaterialDesignBody2TextBlock}"/>
-                    <TextBlock x:Name="PopulationText" 
-                              Text="0" 
+                    <TextBlock Text="{Binding Population}" 
                               Style="{StaticResource MaterialDesignHeadline6TextBlock}"
                               Margin="0,0,0,15"/>
 
                     <TextBlock Text="Happiness" 
                               Style="{StaticResource MaterialDesignBody2TextBlock}"/>
-                    <ProgressBar x:Name="HappinessBar" 
-                                Value="100"
-                                Background="DarkViolet"
+                    <ProgressBar Value="{Binding Happiness, Mode=OneWay}" 
+                                Background="DarkSlateGray"
                                 Foreground="LawnGreen"
                                 Minimum="0" 
                                 Maximum="100"
                                 Height="10"
                                 Margin="0,5,0,5"/>
-                    <TextBlock x:Name="HappinessText" 
-                              Text="100%" 
+                    <TextBlock Text="{Binding Happiness, StringFormat={}{0:0}%}" 
                               Style="{StaticResource MaterialDesignBody2TextBlock}"
                               HorizontalAlignment="Right"/>
                 </StackPanel>
             </materialDesign:Card>
 
             <!-- Bottom Left Card - Menu Buttons -->
-            <materialDesign:Card Grid.Row="1" Margin="10" Padding="15" 
+            <materialDesign:Card Grid.Row="1" Margin="5" Padding="5" 
                          Background="#4A5568" BorderBrush="Black">
                 <StackPanel>
                     <TextBlock Text="Actions" 
                               Style="{StaticResource MaterialDesignHeadline5TextBlock}"
                               Margin="0,0,0,20" HorizontalAlignment="Center"/>
 
-                    <Button Content="Save Game" 
+                    <Button Content="💾 Save Game" 
                            Margin="0,5"
                            Height="40"
+                           Command="{Binding SaveGameCommand}"
                            Style="{StaticResource MaterialDesignRaisedButton}" BorderBrush="Black"/>
 
-                    <Button Content="Load Game" 
+                    <Button Content="📂 Load Game" 
                            Margin="0,5"
                            Height="40"
+                           Command="{Binding LoadGameCommand}"
                            Style="{StaticResource MaterialDesignRaisedButton}" BorderBrush="Black"/>
 
-                    <Button Content="Settings" 
+                    <Button Content="⚙ Settings" 
                            Margin="0,5"
-                           Height="40" BorderBrush="Black"/>
+                           Height="40" 
+                           Command="{Binding SettingsCommand}"
+                           BorderBrush="Black"/>
 
-                    <Button Content="Reset Kingdom" 
+                    <Button Content="⭮ Reset Kingdom" 
                            Margin="0,5"
                            Height="40"
+                           Command="{Binding ResetKingdomCommand}"
+                           Background="Purple" BorderBrush="Black"/>
+                    <Button Content="✖ Exit" 
+                           Margin="0,5"
+                           Height="40"
+                           Command="{Binding ExitCommand}"
                            Background="OrangeRed" BorderBrush="Black"/>
                 </StackPanel>
             </materialDesign:Card>
         </Grid>
 
         <!-- Center Panel - Buildings (Full Height) -->
-        <materialDesign:Card Grid.Column="1" Margin="10" Padding="15" 
+        <materialDesign:Card Grid.Column="1" Margin="5" Padding="5" 
                      Background="#2C3E50" BorderBrush="Black">
             <StackPanel>
-                <TextBlock Text="Buildings" 
+                <TextBlock Text="Owned Buildings" 
                           Style="{StaticResource MaterialDesignHeadline5TextBlock}"
                           Margin="0,0,0,15" HorizontalAlignment="Center"/>
-                <ListView x:Name="BuildingsListView" 
+                <ListView ItemsSource="{Binding Buildings}" 
                          Height="500"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" av:ItemsSource="{av:SampleData ItemCount=5}">
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="0,5">
@@ -143,13 +153,20 @@
                                     <TextBlock Text="Count" Style="{StaticResource MaterialDesignCaptionTextBlock}"/>
                                     <TextBlock Text="{Binding Count}"/>
                                 </StackPanel>
-
+                                <!-- Upgrade-->
                                 <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Content="Upgrade" 
-                                           Width="80" 
-                                           Margin="5,0"/>
-                                    <Button Content="Buy" 
-                                           Width="80"
+                                    <Button Content="🔧"
+                                           ToolTip="Upgrade"
+                                           Width="50" 
+                                           Margin="10,0"
+                                           Command="{Binding DataContext.UpgradeBuildingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                           CommandParameter="{Binding}"/>
+                                    <!-- Buy -->
+                                    <Button Content="💰" 
+                                           Width="50"
+                                           ToolTip="Buy"
+                                           Command="{Binding DataContext.BuyBuildingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                           CommandParameter="{Binding}"
                                            Style="{StaticResource MaterialDesignRaisedButton}"/>
                                 </StackPanel>
                             </Grid>
@@ -160,7 +177,7 @@
         </materialDesign:Card>
 
         <!-- Right Panel - Shop (Full Height) -->
-        <materialDesign:Card Grid.Column="2" Margin="10" Padding="15" 
+        <materialDesign:Card Grid.Column="2" Margin="5" Padding="5" 
                      Background="#4A5568">
             <StackPanel>
                 <TextBlock Text="Shop" 
@@ -171,20 +188,23 @@
                           Style="{StaticResource MaterialDesignBody1TextBlock}"
                           Margin="0,0,0,10"/>
 
-                <ListView x:Name="ShopListView" Height="380">
+                <ListView ItemsSource="{Binding ShopBuildings}" Height="380" av:ItemsSource="{av:SampleData ItemCount=5}">
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,10">
                                 <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                 <TextBlock Text="{Binding Description}" 
                                           TextWrapping="Wrap"
-                                          Margin="0,5"/>
-                                <TextBlock Text="{Binding Cost, StringFormat=Cost: \{0\} gold}" 
+                                          Margin="0,5,0,10"/>
+                                <TextBlock Text="{Binding CurrentCost, StringFormat=Cost: {0:F0} gold}" 
                                           Foreground="{DynamicResource PrimaryHueMidBrush}"/>
-                                <TextBlock Text="{Binding Income, StringFormat=+\{0\} gold/sec}"/>
+                                <TextBlock Text="{Binding BaseIncome, StringFormat=+{0} gold/sec}"/>
                                 <Button Content="Purchase" 
-                                       Margin="0,10,0,0"
-                                       Style="{StaticResource MaterialDesignRaisedButton}"/>
+                                       Margin="0,5,0,0"
+                                       Width="110" 
+                                       Command="{Binding DataContext.BuyBuildingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                       CommandParameter="{Binding}"
+                                       Style="{StaticResource MaterialDesignRaisedButton}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </DataTemplate>
                     </ListView.ItemTemplate>
@@ -196,7 +216,7 @@
                           Style="{StaticResource MaterialDesignBody1TextBlock}"
                           Margin="0,10,0,5" HorizontalAlignment="Center"/>
                 <ScrollViewer Height="60" VerticalScrollBarVisibility="Auto">
-                    <TextBlock x:Name="EventsLog" 
+                    <TextBlock Text="{Binding EventsLog}" 
                               TextWrapping="Wrap"
                               Style="{StaticResource MaterialDesignBody2TextBlock}"/>
                 </ScrollViewer>
