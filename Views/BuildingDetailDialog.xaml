@@ -1,0 +1,193 @@
+﻿<UserControl x:Class="Labb3_DB.Views.BuildingDetailDialog"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+
+    <materialDesign:Card Width="500" Padding="20" Background="#2C3E50">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
+                <TextBlock Text="{Binding SelectedBuilding.Name}" 
+                          Style="{StaticResource MaterialDesignHeadline4TextBlock}"
+                          HorizontalAlignment="Center"/>
+                <Button Style="{StaticResource MaterialDesignIconButton}"
+                       Command="{Binding CloseDialogCommand}"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Top"
+                       Margin="-10,-10,0,0">
+                    <materialDesign:PackIcon Kind="Close" Width="24" Height="24"/>
+                </Button>
+            </Grid>
+
+            <!-- Building Stats -->
+            <Grid Grid.Row="1" Margin="0,0,0,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Current Stats Card -->
+                <materialDesign:Card Grid.Row="0" Grid.ColumnSpan="2" Padding="15" Margin="0,0,0,15" Background="#34495E">
+                    <StackPanel>
+                        <TextBlock Text="Current Statistics" 
+                                  Style="{StaticResource MaterialDesignBody1TextBlock}"
+                                  FontWeight="Bold" Margin="0,0,0,10"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Level" Foreground="LightGray" FontSize="12"/>
+                                <TextBlock Text="{Binding SelectedBuilding.Level}" 
+                                          FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                                <TextBlock Text="Owned" Foreground="LightGray" FontSize="12"/>
+                                <TextBlock Text="{Binding SelectedBuilding.Count}" 
+                                          FontSize="20" FontWeight="Bold"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Income/Building" Foreground="LightGray" FontSize="12"/>
+                                <TextBlock Text="{Binding SelectedBuilding.IncomePerBuilding, StringFormat={}{0:F1}/sec}" 
+                                          FontSize="20" FontWeight="Bold" Foreground="Gold" Margin="0,0,0,10"/>
+
+                                <TextBlock Text="Total Income" Foreground="LightGray" FontSize="12"/>
+                                <TextBlock Text="{Binding SelectedBuilding.CurrentIncome, StringFormat={}{0:F1}/sec}" 
+                                          FontSize="20" FontWeight="Bold" Foreground="Gold"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <!-- Description -->
+                <materialDesign:Card Grid.Row="1" Grid.ColumnSpan="2" Padding="15" Margin="0,0,0,15" Background="#34495E">
+                    <StackPanel>
+                        <TextBlock Text="Description" 
+                                  Style="{StaticResource MaterialDesignBody1TextBlock}"
+                                  FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TextBlock Text="{Binding SelectedBuilding.Description}" 
+                                  TextWrapping="Wrap" 
+                                  Foreground="LightGray"/>
+                    </StackPanel>
+                </materialDesign:Card>
+            </Grid>
+
+            <!-- Actions -->
+            <StackPanel Grid.Row="2" Margin="0,0,0,20">
+                <!-- Buy More -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,10" Background="#34495E">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Purchase Additional Building" 
+                                      FontWeight="Bold" Margin="0,0,0,5"/>
+                            <TextBlock Foreground="LightGray">
+                                <Run Text="Cost: "/>
+                                <Run Text="{Binding CurrentCost, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="Bold" Foreground="Gold"/>
+                                <Run Text=" gold"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" 
+                               Content="Buy +1"
+                               Command="{Binding BuyMoreBuildingCommand}"
+                               Style="{StaticResource MaterialDesignRaisedButton}"
+                               VerticalAlignment="Center"
+                               Padding="20,8" BorderBrush="Black"/>
+                    </Grid>
+                </materialDesign:Card>
+
+                <!-- Upgrade Level -->
+                <materialDesign:Card Padding="15" Margin="0,0,0,10" Background="#34495E">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock FontWeight="Bold" Margin="0,0,0,5">
+                                <Run Text="Upgrade to Level "/>
+                                <Run Text="{Binding SelectedBuilding.NextLevel}"/>
+                            </TextBlock>
+                            <TextBlock Foreground="LightGray">
+                                <Run Text="Cost: "/>
+                                <Run Text="{Binding UpgradeCost, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="Bold" Foreground="Gold"/>
+                                <Run Text=" gold"/>
+                            </TextBlock>
+                            <TextBlock Foreground="LightGreen" FontSize="12" Margin="0,5,0,0">
+                                <Run Text="New income: "/>
+                                <Run Text="{Binding NextLevelIncome, StringFormat={}{0:F1}/sec, Mode=OneWay}" FontWeight="Bold"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" 
+                               Content="Upgrade"
+                               Command="{Binding UpgradeBuildingCommand}"
+                               Style="{StaticResource MaterialDesignRaisedButton}"
+                               Background="#FF6AC5FF"
+                               VerticalAlignment="Center"
+                               Padding="20,8" BorderBrush="Black"/>
+                    </Grid>
+                </materialDesign:Card>
+
+                <!-- Sell Buildings -->
+                <materialDesign:Card Padding="15" Background="#34495E">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Sell One Building" 
+                                      FontWeight="Bold" Margin="0,0,0,5"/>
+                            <TextBlock Foreground="LightGray">
+                                <Run Text="Receive: "/>
+                                <Run Text="{Binding SellValue, StringFormat={}{0:F0}, Mode=OneWay}" FontWeight="Bold" Foreground="Gold"/>
+                                <Run Text=" gold (50% refund)"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" 
+                               Content="Sell -1"
+                               Command="{Binding SellBuildingCommand}"
+                               Style="{StaticResource MaterialDesignRaisedButton}"
+                               Background="#FF963000"
+                               VerticalAlignment="Center"
+                               Padding="20,8" BorderBrush="Black"/>
+                    </Grid>
+                </materialDesign:Card>
+            </StackPanel>
+
+            <!-- Close Button -->
+            <Button Grid.Row="3" 
+                   Content="Close"
+                   Command="{Binding CloseDialogCommand}"
+                   Style="{StaticResource MaterialDesignFlatButton}"
+                   HorizontalAlignment="Center"
+                   Width="150"
+                   Height="40"/>
+        </Grid>
+    </materialDesign:Card>
+</UserControl>

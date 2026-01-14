@@ -24,35 +24,38 @@ namespace Labb3_DB.ViewModels
 
         public int PopulationCost => _model.PopulationCost;
 
-        // For UI display of totals based on count
-        public double TotalIncome => _count > 0 ? _model.BaseIncome * _count : _model.BaseIncome;
+        public int Level => _model.Level;
 
-        public int TotalMaxPopulation => _count > 0 ? _model.MaxPopulation * _count : _model.MaxPopulation;
+        public double IncomePerBuilding => _model.BaseIncome * (Level * 5);
 
-        public int TotalPopulationCost => _count > 0 ? _model.PopulationCost * _count : _model.PopulationCost;
+        public double TotalIncome => _model.Count > 0 ? _model.BaseIncome * (Level * 5) * _model.Count : _model.BaseIncome;
 
-        public double TotalHappinessIncrease => _count > 0 ? _model.HappinessIncrease * _count : _model.HappinessIncrease;
+        public int TotalMaxPopulation => _model.Count > 0 ? _model.MaxPopulation * _model.Count : _model.MaxPopulation;
 
-        private int _count;
-        public int Count
-            {
-            get => _count;
-            set
-                {
-                if (SetProperty(ref _count, value))
-                    {
-                    _model.Count = value;
-                    OnPropertyChanged(nameof(CurrentCost)); // TODO: Uppdatera även cost
-                    }
-                }
-            }
+        public int TotalPopulationCost => _model.Count > 0 ? _model.PopulationCost * _model.Count : _model.PopulationCost;
+
+        public double TotalHappinessIncrease => _model.Count > 0 ? _model.HappinessIncrease * _model.Count : _model.HappinessIncrease;
+
+        public int Count => _model.Count;
 
         public Building Model => _model;
 
         public BuildingViewModel(Building model)
             {
             _model = model;
-            _count = model.Count;
+            // Listen to model changes
+            _model.PropertyChanged += (s, e) =>
+                {
+                if (e.PropertyName == nameof(Building.Count))
+                    {
+                    OnPropertyChanged(nameof(Count));
+                    OnPropertyChanged(nameof(TotalIncome));
+                    OnPropertyChanged(nameof(TotalMaxPopulation));
+                    OnPropertyChanged(nameof(TotalPopulationCost));
+                    OnPropertyChanged(nameof(TotalHappinessIncrease));
+                    OnPropertyChanged(nameof(CurrentCost));
+                    }
+                };
             }
         }
     }

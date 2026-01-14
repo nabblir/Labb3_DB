@@ -1,0 +1,86 @@
+﻿<UserControl x:Class="Labb3_DB.Views.CenterPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:commands="clr-namespace:Labb3_DB.Commands">
+
+    <UserControl.Resources>
+        <commands:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+    </UserControl.Resources>
+
+    <materialDesign:Card Margin="5" Padding="5" Background="#2C3E50" BorderBrush="Black">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="144*"/>
+                <ColumnDefinition Width="35*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Owned Buildings" Grid.Row="0"
+                      Style="{StaticResource MaterialDesignHeadline5TextBlock}"
+                      Margin="0,0,0,15" HorizontalAlignment="Left" Grid.ColumnSpan="2"/>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Grid.ColumnSpan="2">
+                <ItemsControl ItemsSource="{Binding Buildings}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Margin="5" Padding="10"
+                                   Command="{Binding DataContext.OpenBuildingDialogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                   CommandParameter="{Binding}"
+                                   Style="{StaticResource MaterialDesignRaisedButton}"
+                                   Height="Auto" HorizontalContentAlignment="Center">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Text="{Binding Name, Mode=OneWay}" 
+                                              FontWeight="Bold" FontSize="16"
+                                              TextAlignment="Center" Margin="0,0,0,5"/>
+
+                                    <TextBlock Grid.Row="1" FontSize="14" TextAlignment="Center" Margin="0,0,0,10">
+                                        <Run Text="Amount: "/>
+                                        <Run Text="{Binding Count, Mode=OneWay}" FontWeight="Bold"/>
+                                    </TextBlock>
+
+                                    <StackPanel Grid.Row="2" Orientation="Vertical" HorizontalAlignment="Center">
+                                        <TextBlock FontSize="12" TextAlignment="Center" TextWrapping="Wrap"
+                                                  Visibility="{Binding MaxPopulation, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                            <Run Text="👥 Max Pop: "/>
+                                            <Run Text="{Binding TotalMaxPopulation, Mode=OneWay}" FontWeight="Bold"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" TextAlignment="Center" TextWrapping="Wrap"
+                                                  Visibility="{Binding TotalHappinessIncrease, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                            <Run Text="😊 Happiness: "/>
+                                            <Run Text="{Binding TotalHappinessIncrease, Mode=OneWay}" FontWeight="Bold"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" TextAlignment="Center" TextWrapping="Wrap"
+                                                  Visibility="{Binding TotalIncome, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                            <Run Text="💰 GPS: "/>
+                                            <Run Text="{Binding TotalIncome, Mode=OneWay, StringFormat='{}{0:F1}'}" FontWeight="Bold"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" TextAlignment="Center" TextWrapping="Wrap"
+                                                  Visibility="{Binding TotalPopulationCost, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                            <Run Text="👤 Population: "/>
+                                            <Run Text="{Binding TotalPopulationCost, Mode=OneWay}" FontWeight="Bold"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </materialDesign:Card>
+</UserControl>

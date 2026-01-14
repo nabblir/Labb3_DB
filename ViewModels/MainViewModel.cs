@@ -3,7 +3,10 @@ using Labb3_DB.Data;
 using Labb3_DB.Models;
 using Labb3_DB.Mongo;
 using Labb3_DB.ViewModels;
+using Labb3_DB.Views;
+using MaterialDesignThemes.Wpf;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 
@@ -84,12 +87,21 @@ public class MainViewModel : BaseViewModel
     public ICommand SaveGameCommand { get; }
     public ICommand ResetKingdomCommand { get; }
 
+    public ICommand OpenBuildingDialogCommand { get; }
+
     public MainViewModel()
         {
         _dbService = new DatabaseService();
         Buildings = new ObservableCollection<BuildingViewModel>();
         ShopBuildings = new ObservableCollection<BuildingViewModel>();
 
+        OpenBuildingDialogCommand = new RelayCommand(async (building) => 
+        {
+            if (building is BuildingViewModel bvm && bvm.Model is Building model)
+            {
+                await OpenBuildingDialog(model);
+            }
+        });
         BuyBuildingCommand = new RelayCommand(async (param) => await BuyBuilding(param));
         SaveGameCommand = new RelayCommand(async (_) => await SaveGameTimerAsync());
         ResetKingdomCommand = new RelayCommand(async (_) => await ResetKingdom());
@@ -132,10 +144,13 @@ public class MainViewModel : BaseViewModel
                 if (owned != null)
                     {
                     var vm = new BuildingViewModel(owned);
-                    ShopBuildings.Add(vm);
-                    if (owned.Count > 0)
+                    if (owned.Count > 0) // Only add to owned buildings if count > 0
                         {
                         Buildings.Add(vm);
+                        }
+                    else //TODO: Update shopbuildings with owned data after each buy, to remove from list etc.
+                        {
+                        ShopBuildings.Add(vm);
                         }
                     }
                 else
@@ -196,19 +211,25 @@ public class MainViewModel : BaseViewModel
 
         if (building.Model.Id != null)
             {
-            building.Count++;
+            building.Model.Count++;
             await _dbService.UpdateBuildingAsync(building.Model);
             LogEvent($"Bought another {building.Name}");
             }
         else
             {
-            building.Count = 1;
+            building.Model.Count = 1;
             await _dbService.CreateBuildingAsync(building.Model);
             Buildings.Add(building);
             LogEvent($"Bought a {building.Name}");
             }
 
         UpdateStats(building);
+        }
+
+    private void OpenBuildingOption(object? parameter)
+        {
+        var building = parameter as BuildingViewModel;
+        
         }
 
     private async Task ResetKingdom()
@@ -248,7 +269,7 @@ public class MainViewModel : BaseViewModel
             }
         }
 
-    private void UpdateStats(BuildingViewModel building)
+    private void UpdateStats(BuildingViewModel building) // REMOVE THIS METHOD LATER? USING UpdateGameStats INSTEAD
         {
         if (building.HappinessDecrease != 0)
             {
@@ -286,11 +307,12 @@ public class MainViewModel : BaseViewModel
         while (await _gameTick.WaitForNextTickAsync())
             {
             _currentKingdom.Gold += _currentKingdom.GoldPerSecond;
-            _currentKingdom.Happiness = _currentKingdom.Happiness - ( _currentKingdom.HappinessDecrease + _currentKingdom.HappinessIncrease );
+            _currentKingdom.Happiness += _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
             _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
 
             Happiness = _currentKingdom.Happiness;
             Gold = _currentKingdom.Gold;
+            Debug.WriteLine($"[GameTick] Math: {_currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease}, Happiness: {Happiness} vs {_currentKingdom.Happiness + _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease}");
             }
         }
 
@@ -306,6 +328,69 @@ public class MainViewModel : BaseViewModel
                 _currentKingdom.Happiness = Happiness;
                 _currentKingdom.EventsLog = EventsLog;
                 await _dbService.UpdateKingdomAsync(_currentKingdom);
+                }
+            }
+        }
+
+    private async Task OpenBuildingDialog(Building building)
+        {
+        // Skapa en separat ViewModel för dialogen
+        var dialogViewModel = new BuildingDetailDialogViewModel(
+            building,
+            Gold,
+            UpdateGold,
+            UpdateGameStats
+        );
+
+        // Skapa dialog view med sin egen ViewModel
+        var view = new BuildingDetailDialog
+            {
+            DataContext = dialogViewModel
+            };
+
+        // Öppna dialogen
+        await DialogHost.Show(view, "MainDialogHost");
+        }
+
+    // Helper metoder som skickas till DialogViewModel
+    private void UpdateGold(double amount)
+        {
+        Gold += amount;
+        _currentKingdom.Gold = Gold;
+        }
+
+    private void UpdateGameStats()
+        {
+        // Uppdatera alla stats
+        GoldPerSecond = Buildings.Sum(b => b.TotalIncome);
+        _currentKingdom.GoldPerSecond = GoldPerSecond;
+
+        Population = Buildings.Sum(b => b.PopulationCost * b.Count);
+        _currentKingdom.Population = Population;
+
+        MaxPopulation = Buildings.Sum(b => b.MaxPopulation * b.Count);
+        _currentKingdom.MaxPopulation = MaxPopulation;
+
+        HappinessIncrease = Buildings.Sum(b => b.HappinessIncrease * b.Count);
+        _currentKingdom.HappinessIncrease = HappinessIncrease;
+
+        HappinessDecrease = Buildings.Sum(b => b.HappinessDecrease * b.Count);
+        _currentKingdom.HappinessDecrease = HappinessDecrease;
+
+        _ = SyncBuildingCountsAsync();
+        }
+    private async Task SyncBuildingCountsAsync()
+        {
+        foreach (var building in Buildings)
+            {
+            var dbBuilding = await _dbService.GetBuildingByNameAsync(building.Name);
+
+            if (dbBuilding != null && dbBuilding.Count != building.Model.Count)
+                {
+                // Database count doesn't match model count - update database to match model
+                building.Model.Id = dbBuilding.Id; // Ensure ID is set for update
+                await _dbService.UpdateBuildingAsync(building.Model);
+                LogEvent($"Synced {building.Name} count: {building.Model.Count}");
                 }
             }
         }

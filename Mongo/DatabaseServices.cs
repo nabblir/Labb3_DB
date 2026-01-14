@@ -143,7 +143,7 @@ namespace Labb3_DB.Mongo
 
         #endregion
 
-        #region Database Initialization
+        #region Database General Operations
 
         /// <summary>
         /// Init the database with a new kingdom and starting buildings
