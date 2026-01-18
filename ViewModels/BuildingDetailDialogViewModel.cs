@@ -9,17 +9,28 @@ namespace Labb3_DB.ViewModels
     {
     public class BuildingDetailDialogViewModel : INotifyPropertyChanged
         {
+        private readonly Building _buildingTemplate;
         private readonly Action<double> _updateGold;
         private readonly Action _updateStats;
+        private readonly Func<OwnedBuilding?> _getOwnedBuilding;
 
-        public BuildingDetailDialogViewModel(Building building, double currentGold, Action<double> updateGold, Action updateStats)
+        public BuildingDetailDialogViewModel(
+            Building buildingTemplate,
+            OwnedBuilding? ownedBuilding,
+            double currentGold,
+            Action<double> updateGold,
+            Action updateStats,
+            Func<OwnedBuilding?> getOwnedBuilding)
             {
-            SelectedBuilding = building;
+            _buildingTemplate = buildingTemplate;
+            OwnedBuilding = ownedBuilding;
             CurrentGold = currentGold;
             _updateGold = updateGold;
             _updateStats = updateStats;
+            _getOwnedBuilding = getOwnedBuilding;
 
             // Initialize commands
+            BuyBuildingCommand = new RelayCommand(_ => BuyBuilding(), _ => CanBuy());
             BuyMoreBuildingCommand = new RelayCommand(_ => BuyMoreBuilding(), _ => CanBuyMore());
             UpgradeBuildingCommand = new RelayCommand(_ => UpgradeBuilding(), _ => CanUpgrade());
             SellBuildingCommand = new RelayCommand(_ => SellBuilding(), _ => CanSell());
@@ -28,14 +39,20 @@ namespace Labb3_DB.ViewModels
 
         #region Properties
 
-        private Building _selectedBuilding;
-        public Building SelectedBuilding
+        public Building BuildingTemplate => _buildingTemplate;
+
+        private OwnedBuilding? _ownedBuilding;
+        public OwnedBuilding? OwnedBuilding
             {
-            get => _selectedBuilding;
+            get => _ownedBuilding;
             set
                 {
-                _selectedBuilding = value;
+                _ownedBuilding = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsOwned));
+                OnPropertyChanged(nameof(Count));
+                OnPropertyChanged(nameof(Level));
+                OnPropertyChanged(nameof(CurrentCost));
                 OnPropertyChanged(nameof(NextLevel));
                 OnPropertyChanged(nameof(UpgradeCost));
                 OnPropertyChanged(nameof(NextLevelIncome));
@@ -55,20 +72,37 @@ namespace Labb3_DB.ViewModels
                 }
             }
 
-        public int NextLevel => SelectedBuilding.Level + 1;
+        public bool IsOwned => OwnedBuilding != null && OwnedBuilding.Count > 0;
+
+        public int Count => OwnedBuilding?.Count ?? 0;
+
+        public int Level => OwnedBuilding?.Level ?? 1;
+
+        public int NextLevel => Level + 1;
+
+        public double CurrentCost
+            {
+            get
+                {
+                if (OwnedBuilding != null)
+                    {
+                    return OwnedBuilding.CalculateCurrentCost(_buildingTemplate);
+                    }
+                return _buildingTemplate.BaseCost;
+                }
+            }
 
         public double UpgradeCost => CalculateUpgradeCost();
 
         public double NextLevelIncome => CalculateNextLevelIncome();
 
-        public double SellValue => SelectedBuilding.BaseCost * Math.Pow(SelectedBuilding.CostMultiplier, SelectedBuilding.Count - 1) * 0.5;
-
-        public double CurrentCost => SelectedBuilding?.CurrentCost ?? 0;
+        public double SellValue => CalculateSellValue();
 
         #endregion
 
         #region Commands
 
+        public ICommand BuyBuildingCommand { get; }
         public ICommand BuyMoreBuildingCommand { get; }
         public ICommand UpgradeBuildingCommand { get; }
         public ICommand SellBuildingCommand { get; }
@@ -78,25 +112,50 @@ namespace Labb3_DB.ViewModels
 
         #region Command Methods
 
+        private bool CanBuy()
+            {
+            return CurrentGold >= CurrentCost && !IsOwned;
+            }
+
+        private void BuyBuilding()
+            {
+            if (CurrentGold >= CurrentCost)
+                {
+                double cost = CurrentCost;
+                _updateGold(-cost);
+                CurrentGold -= cost;
+
+                // This will be handled in MainViewModel to create new OwnedBuilding and add it to Kingdom.OwnedBuildings
+                _updateStats();
+
+                OwnedBuilding = _getOwnedBuilding();
+
+                CommandManager.InvalidateRequerySuggested();
+                }
+            }
+
         private bool CanBuyMore()
             {
-            return CurrentGold >= SelectedBuilding.CurrentCost;
+            return CurrentGold >= CurrentCost && IsOwned;
             }
 
         private void BuyMoreBuilding()
             {
-            if (CurrentGold >= SelectedBuilding.CurrentCost)
+            if (CurrentGold >= CurrentCost && OwnedBuilding != null)
                 {
-                double cost = SelectedBuilding.CurrentCost;
+                double cost = CurrentCost;
                 _updateGold(-cost);
                 CurrentGold -= cost;
 
-                SelectedBuilding.Count++;
+                OwnedBuilding.Count++;
+                OwnedBuilding.RecalculateTotals(_buildingTemplate);
 
-                // Notify that these depend on Count
+                // Notify property changes
+                OnPropertyChanged(nameof(Count));
                 OnPropertyChanged(nameof(CurrentCost));
                 OnPropertyChanged(nameof(UpgradeCost));
                 OnPropertyChanged(nameof(SellValue));
+
                 _updateStats();
                 CommandManager.InvalidateRequerySuggested();
                 }
@@ -104,24 +163,26 @@ namespace Labb3_DB.ViewModels
 
         private bool CanUpgrade()
             {
-            return CurrentGold >= UpgradeCost && SelectedBuilding.Count > 0;
+            return CurrentGold >= UpgradeCost && IsOwned;
             }
 
         private void UpgradeBuilding()
             {
-            if (CurrentGold >= UpgradeCost && SelectedBuilding.Count > 0)
+            if (CurrentGold >= UpgradeCost && OwnedBuilding != null)
                 {
                 double cost = UpgradeCost;
-
                 _updateGold(-cost);
                 CurrentGold -= cost;
 
-                SelectedBuilding.Level++;
+                OwnedBuilding.Level++;
+                OwnedBuilding.RecalculateTotals(_buildingTemplate);
 
-                // Notify that these depend on Level
+                // Notify property changes
+                OnPropertyChanged(nameof(Level));
+                OnPropertyChanged(nameof(NextLevel));
                 OnPropertyChanged(nameof(UpgradeCost));
                 OnPropertyChanged(nameof(NextLevelIncome));
-                OnPropertyChanged(nameof(CurrentCost));
+
                 _updateStats();
                 CommandManager.InvalidateRequerySuggested();
                 }
@@ -129,24 +190,27 @@ namespace Labb3_DB.ViewModels
 
         private bool CanSell()
             {
-            return SelectedBuilding.Count > 0;
+            return IsOwned;
             }
 
         private void SellBuilding()
             {
-            if (SelectedBuilding.Count > 0)
+            if (OwnedBuilding != null && OwnedBuilding.Count > 0)
                 {
                 double refund = SellValue;
-
                 _updateGold(refund);
                 CurrentGold += refund;
 
-                SelectedBuilding.Count--;
+                OwnedBuilding.Count--;
+                OwnedBuilding.RecalculateTotals(_buildingTemplate);
 
-                // Notify that these depend on Count
+                // Notify property changes
+                OnPropertyChanged(nameof(Count));
+                OnPropertyChanged(nameof(IsOwned));
                 OnPropertyChanged(nameof(CurrentCost));
                 OnPropertyChanged(nameof(UpgradeCost));
                 OnPropertyChanged(nameof(SellValue));
+
                 _updateStats();
                 CommandManager.InvalidateRequerySuggested();
                 }
@@ -163,23 +227,34 @@ namespace Labb3_DB.ViewModels
 
         private double CalculateUpgradeCost()
             {
+            if (!IsOwned)
+                return 0;
             // Cost increases exponentially with level
-            return SelectedBuilding.BaseCost * Math.Pow(2, SelectedBuilding.Level) * SelectedBuilding.Count;
+            return _buildingTemplate.BaseCost * Math.Pow(2, Level) * Count;
             }
 
         private double CalculateNextLevelIncome()
             {
-            // Income at next level
-            return SelectedBuilding.BaseIncome * ( NextLevel ) * SelectedBuilding.Count;
+            if (!IsOwned)
+                return _buildingTemplate.BaseIncome * 5; // Level 1 income
+            return _buildingTemplate.BaseIncome * ( NextLevel * 5 ) * Count;
+            }
+
+        private double CalculateSellValue()
+            {
+            if (!IsOwned)
+                return 0;
+            // Sell
+            return _buildingTemplate.BaseCost * Math.Pow(_buildingTemplate.CostMultiplier, Count - 1) * 0.5;
             }
 
         #endregion
 
         #region INotifyPropertyChanged
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
             {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }

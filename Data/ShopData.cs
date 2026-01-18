@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 namespace Labb3_DB.Data
     {
-
     public static class ShopData
         {
         public static List<Building> GetShopBuildings()
@@ -18,9 +17,7 @@ namespace Labb3_DB.Data
                     BaseIncome = 0.5,
                     BuildingType = "Production",
                     PopulationCost = 1,
-                    HappinessDecrease = 0.01f,
-                    Count = 0,
-                    Level = 1
+                    HappinessDecrease = 0.01f
                 },
                 new Building
                 {
@@ -30,9 +27,7 @@ namespace Labb3_DB.Data
                     BaseIncome = 2.5,
                     BuildingType = "Production",
                     PopulationCost = 2,
-                    HappinessDecrease = 0.03f,
-                    Count = 0,
-                    Level = 1
+                    HappinessDecrease = 0.03f
                 },
                 new Building
                 {
@@ -41,20 +36,17 @@ namespace Labb3_DB.Data
                     BaseCost = 25,
                     BaseIncome = 0,
                     BuildingType = "Housing",
-                    MaxPopulation = 5,
-                    Count = 0,
-                    Level = 1
+                    MaxPopulation = 5
                 },
                 new Building
                 {
                     Name = "Tavern",
                     Description = "Keeps citizens happy\nProduces 0.25 happiness per second",
                     BaseCost = 75,
+                    BaseIncome = 0,
                     HappinessIncrease = 0.25f,
                     BuildingType = "Entertainment",
-                    PopulationCost = 1,
-                    Count = 0,
-                    Level = 1
+                    PopulationCost = 1
                 },
                 new Building
                 {
@@ -63,9 +55,7 @@ namespace Labb3_DB.Data
                     BaseCost = 15000,
                     BaseIncome = 50,
                     BuildingType = "Housing",
-                    MaxPopulation = 125,
-                    Count = 0,
-                    Level = 1
+                    MaxPopulation = 125
                 },
                 new Building
                 {
@@ -75,9 +65,7 @@ namespace Labb3_DB.Data
                     HappinessIncrease = 3,
                     BaseIncome = 10,
                     BuildingType = "Entertainment",
-                    PopulationCost = 1,
-                    Count = 0,
-                    Level = 1
+                    PopulationCost = 1
                 }
             };
             }

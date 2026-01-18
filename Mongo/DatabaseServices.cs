@@ -1,10 +1,9 @@
-﻿using MongoDB.Driver;
+﻿using Labb3_DB.Data;
 using Labb3_DB.Models;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Windows.Documents;
-using Labb3_DB.ViewModels;
 
 namespace Labb3_DB.Mongo
     {
@@ -17,15 +16,13 @@ namespace Labb3_DB.Mongo
         private readonly IMongoCollection<Kingdom> _kingdomCollection;
         private readonly IMongoCollection<Building> _buildingsCollection;
 
-
-        private const string DatabaseName = "KevinSpehling"; 
+        private const string ConnectionString = "mongodb://localhost:27017";
+        private const string DatabaseName = "KevinSpehling";
 
         public DatabaseService()
             {
-
-            var client = new MongoClient("mongodb://localhost:27017");
+            var client = new MongoClient(ConnectionString);
             _database = client.GetDatabase(DatabaseName);
-
 
             _kingdomCollection = _database.GetCollection<Kingdom>("kingdoms");
             _buildingsCollection = _database.GetCollection<Building>("buildings");
@@ -47,8 +44,7 @@ namespace Labb3_DB.Mongo
         /// </summary>
         public async Task<Kingdom?> GetKingdomAsync()
             {
-            var kingdoms = await _kingdomCollection.Find(_ => true).ToListAsync();
-            return kingdoms.Count > 0 ? kingdoms[0] : null;
+            return await _kingdomCollection.Find(_ => true).FirstOrDefaultAsync();
             }
 
         /// <summary>
@@ -75,10 +71,10 @@ namespace Labb3_DB.Mongo
 
         #endregion
 
-        #region Building CRUD Operations
+        #region Building CRUD Operations (Shop Templates)
 
         /// <summary>
-        /// Creates a new building
+        /// Creates a new building template
         /// </summary>
         public async Task<Building> CreateBuildingAsync(Building building)
             {
@@ -87,22 +83,24 @@ namespace Labb3_DB.Mongo
             }
 
         /// <summary>
-        /// Fetches all buildings
+        /// Fetches all building templates (shop catalog)
         /// </summary>
         public async Task<List<Building>> GetAllBuildingsAsync()
             {
             return await _buildingsCollection.Find(_ => true).ToListAsync();
             }
+
         /// <summary>
-        /// Return buildings by name
+        /// Return building template by name
         /// </summary>
         public async Task<Building?> GetBuildingByNameAsync(string name)
             {
             var filter = Builders<Building>.Filter.Eq(b => b.Name, name);
             return await _buildingsCollection.Find(filter).FirstOrDefaultAsync();
             }
+
         /// <summary>
-        /// Unique building types for shop filtering
+        /// Get building templates by type for shop filtering
         /// </summary>
         public async Task<List<Building>> GetBuildingsByTypeAsync(string type)
             {
@@ -112,7 +110,7 @@ namespace Labb3_DB.Mongo
             }
 
         /// <summary>
-        /// Update building
+        /// Update building template
         /// </summary>
         public async Task<bool> UpdateBuildingAsync(Building building)
             {
@@ -124,7 +122,7 @@ namespace Labb3_DB.Mongo
             }
 
         /// <summary>
-        /// Delete building (Not in use)
+        /// Delete building template
         /// </summary>
         public async Task<bool> DeleteBuildingAsync(string id)
             {
@@ -133,7 +131,7 @@ namespace Labb3_DB.Mongo
             }
 
         /// <summary>
-        /// Delete ALL buildings (Reset button)
+        /// Delete ALL building templates (Reset button)
         /// </summary>
         public async Task<long> DeleteAllBuildingsAsync()
             {
@@ -143,10 +141,10 @@ namespace Labb3_DB.Mongo
 
         #endregion
 
-        #region Database General Operations
+        #region Database Initialization
 
         /// <summary>
-        /// Init the database with a new kingdom and starting buildings
+        /// Initialize the database with a new kingdom and starting buildings
         /// </summary>
         public async Task InitializeDatabaseAsync()
             {
@@ -157,19 +155,54 @@ namespace Labb3_DB.Mongo
                 return;
                 }
 
+            // Create initial kingdom
             var kingdom = new Kingdom
                 {
                 KingdomName = "Starship Alice",
                 Gold = 5,
-                GoldPerSecond = .5f,
+                GoldPerSecond = 0.5f,
                 Population = 1,
                 MaxPopulation = 5,
                 Happiness = 50,
                 HappinessDecrease = 0.01f,
-                HappinessIncrease = 0
+                HappinessIncrease = 0,
+                OwnedBuildings = new List<OwnedBuilding>()
                 };
 
+            // Give starting building
+            var startingFarm = new OwnedBuilding
+                {
+                BuildingName = "Farm",
+                Count = 1,
+                Level = 1
+                };
+
+            // Get Farm template to calculate totals
+            var farmTemplate = ShopData.GetShopBuildings().FirstOrDefault(b => b.Name == "Farm");
+            if (farmTemplate != null)
+                {
+                startingFarm.RecalculateTotals(farmTemplate);
+                kingdom.OwnedBuildings.Add(startingFarm);
+                }
+
             await CreateKingdomAsync(kingdom);
+            }
+
+        /// <summary>
+        /// Initialize building templates in the shop
+        /// </summary>
+        public async Task InitializeBuildingsAsync()
+            {
+            // Check if buildings already exist
+            var existingBuildings = await GetAllBuildingsAsync();
+            if (existingBuildings.Count > 0)
+                {
+                return;
+                }
+
+            
+            var shopData = ShopData.GetShopBuildings();
+            await _buildingsCollection.InsertManyAsync(shopData);
             }
 
         #endregion

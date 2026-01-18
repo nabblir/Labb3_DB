@@ -14,7 +14,7 @@
 
             <!-- Header -->
             <Grid Grid.Row="0" Margin="0,0,0,20">
-                <TextBlock Text="{Binding SelectedBuilding.Name}" 
+                <TextBlock Text="{Binding BuildingTemplate.Name}" 
                           Style="{StaticResource MaterialDesignHeadline4TextBlock}"
                           HorizontalAlignment="Center"/>
                 <Button Style="{StaticResource MaterialDesignIconButton}"
@@ -31,16 +31,10 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
 
                 <!-- Current Stats Card -->
-                <materialDesign:Card Grid.Row="0" Grid.ColumnSpan="2" Padding="15" Margin="0,0,0,15" Background="#34495E">
+                <materialDesign:Card Grid.Row="0" Padding="15" Margin="0,0,0,15" Background="#34495E">
                     <StackPanel>
                         <TextBlock Text="Current Statistics" 
                                   Style="{StaticResource MaterialDesignBody1TextBlock}"
@@ -54,34 +48,38 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Level" Foreground="LightGray" FontSize="12"/>
-                                <TextBlock Text="{Binding SelectedBuilding.Level}" 
+                                <TextBlock Text="{Binding Level}" 
                                           FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
 
                                 <TextBlock Text="Owned" Foreground="LightGray" FontSize="12"/>
-                                <TextBlock Text="{Binding SelectedBuilding.Count}" 
+                                <TextBlock Text="{Binding Count}" 
                                           FontSize="20" FontWeight="Bold"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Income/Building" Foreground="LightGray" FontSize="12"/>
-                                <TextBlock Text="{Binding SelectedBuilding.IncomePerBuilding, StringFormat={}{0:F1}/sec}" 
-                                          FontSize="20" FontWeight="Bold" Foreground="Gold" Margin="0,0,0,10"/>
+                                <TextBlock FontSize="20" FontWeight="Bold" Foreground="Gold" Margin="0,0,0,10">
+                                    <Run Text="{Binding OwnedBuilding.IncomePerBuilding, StringFormat={}{0:F1}, Mode=OneWay}"/>
+                                    <Run Text="/sec"/>
+                                </TextBlock>
 
                                 <TextBlock Text="Total Income" Foreground="LightGray" FontSize="12"/>
-                                <TextBlock Text="{Binding SelectedBuilding.CurrentIncome, StringFormat={}{0:F1}/sec}" 
-                                          FontSize="20" FontWeight="Bold" Foreground="Gold"/>
+                                <TextBlock FontSize="20" FontWeight="Bold" Foreground="Gold">
+                                    <Run Text="{Binding OwnedBuilding.TotalIncome, StringFormat={}{0:F1}, Mode=OneWay}"/>
+                                    <Run Text="/sec"/>
+                                </TextBlock>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
                 </materialDesign:Card>
 
                 <!-- Description -->
-                <materialDesign:Card Grid.Row="1" Grid.ColumnSpan="2" Padding="15" Margin="0,0,0,15" Background="#34495E">
+                <materialDesign:Card Grid.Row="1" Padding="15" Background="#34495E">
                     <StackPanel>
                         <TextBlock Text="Description" 
                                   Style="{StaticResource MaterialDesignBody1TextBlock}"
                                   FontWeight="Bold" Margin="0,0,0,5"/>
-                        <TextBlock Text="{Binding SelectedBuilding.Description}" 
+                        <TextBlock Text="{Binding BuildingTemplate.Description}" 
                                   TextWrapping="Wrap" 
                                   Foreground="LightGray"/>
                     </StackPanel>
@@ -128,7 +126,7 @@
                         <StackPanel Grid.Column="0">
                             <TextBlock FontWeight="Bold" Margin="0,0,0,5">
                                 <Run Text="Upgrade to Level "/>
-                                <Run Text="{Binding SelectedBuilding.NextLevel}"/>
+                                <Run Text="{Binding NextLevel, Mode=OneWay}"/>
                             </TextBlock>
                             <TextBlock Foreground="LightGray">
                                 <Run Text="Cost: "/>
@@ -137,7 +135,8 @@
                             </TextBlock>
                             <TextBlock Foreground="LightGreen" FontSize="12" Margin="0,5,0,0">
                                 <Run Text="New income: "/>
-                                <Run Text="{Binding NextLevelIncome, StringFormat={}{0:F1}/sec, Mode=OneWay}" FontWeight="Bold"/>
+                                <Run Text="{Binding NextLevelIncome, StringFormat={}{0:F1}, Mode=OneWay}" FontWeight="Bold"/>
+                                <Run Text="/sec"/>
                             </TextBlock>
                         </StackPanel>
 

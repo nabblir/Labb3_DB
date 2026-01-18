@@ -24,7 +24,7 @@
                       Margin="0,0,0,15" HorizontalAlignment="Left" Grid.ColumnSpan="2"/>
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Grid.ColumnSpan="2">
-                <ItemsControl ItemsSource="{Binding Buildings}">
+                <ItemsControl ItemsSource="{Binding OwnedBuildings}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <UniformGrid Columns="3"/>

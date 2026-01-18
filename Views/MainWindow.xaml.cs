@@ -1,5 +1,6 @@
 ﻿using Labb3_DB.Models;
 using Labb3_DB.Mongo;
+using Labb3_DB.ViewModels;
 using System;
 using System.Windows;
 using System.Windows.Data;

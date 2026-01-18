@@ -1,6 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
+using System.Collections.Generic;
 
 namespace Labb3_DB.Models
     {
@@ -24,7 +25,7 @@ namespace Labb3_DB.Models
 
         [BsonElement("population")]
         public int Population { get; set; } = 10;
-        
+
         [BsonElement("maxPopulation")]
         public int MaxPopulation { get; set; } = 10;
 
@@ -32,19 +33,21 @@ namespace Labb3_DB.Models
         public float Happiness { get; set; } = 100f;
 
         [BsonElement("happinessDecrease")]
-        public float HappinessDecrease { get; set; } = 100f;
+        public float HappinessDecrease { get; set; } = 0f;
 
         [BsonElement("happinessIncrease")]
-        public float HappinessIncrease { get; set; } = 100f;
+        public float HappinessIncrease { get; set; } = 0f;
 
         [BsonElement("lastSaved")]
         public DateTime LastSaved { get; set; } = DateTime.UtcNow;
 
         [BsonElement("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        
+
         [BsonElement("eventsLog")]
         public string EventsLog { get; set; } = string.Empty;
-        }
 
+        [BsonElement("ownedBuildings")]
+        public List<OwnedBuilding> OwnedBuildings { get; set; } = new List<OwnedBuilding>();
+        }
     }
