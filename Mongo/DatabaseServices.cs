@@ -1,13 +1,15 @@
 ﻿using Labb3_DB.Data;
 using Labb3_DB.Models;
 using MongoDB.Driver;
+using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+
 namespace Labb3_DB.Mongo
     {
     /// <summary>
@@ -16,61 +18,110 @@ namespace Labb3_DB.Mongo
     public class DatabaseService
         {
         private readonly IMongoDatabase _database;
-        private readonly IMongoCollection<Kingdom> _kingdomCollection;
         private readonly IMongoCollection<Building> _buildingsCollection;
         private readonly IMongoCollection<User> _userCollection;
         private const string ConnectionString = "mongodb://localhost:27017";
         private const string DatabaseName = "KevinSpehling";
+
         public DatabaseService()
             {
             var client = new MongoClient(ConnectionString);
             _database = client.GetDatabase(DatabaseName);
 
-            _kingdomCollection = _database.GetCollection<Kingdom>("kingdoms");
             _buildingsCollection = _database.GetCollection<Building>("buildings");
             _userCollection = _database.GetCollection<User>("users");
-
             }
 
-        #region Kingdom CRUD Operations
+        #region Kingdom CRUD Operations (Embedded in User)
 
         /// <summary>
-        /// Creates a new kingdom
+        /// Creates a new kingdom for a user
         /// </summary>
-        public async Task<Kingdom> CreateKingdomAsync(Kingdom kingdom)
+        public async Task<Kingdom> CreateKingdomAsync(string userId, Kingdom kingdom)
             {
-            await _kingdomCollection.InsertOneAsync(kingdom);
+            // Generate a unique ID for the kingdom if not set
+            if (string.IsNullOrEmpty(kingdom.Id))
+                {
+                kingdom.Id = ObjectId.GenerateNewId().ToString();
+                }
+
+            kingdom.UserId = userId;
+            kingdom.LastSaved = DateTime.UtcNow;
+
+            var filter = Builders<User>.Filter.Eq(u => u.UserId, userId);
+            var update = Builders<User>.Update.Push(u => u.SavedKingdoms, kingdom);
+
+            await _userCollection.UpdateOneAsync(filter, update);
             return kingdom;
             }
 
         /// <summary>
-        /// Fetches the kingdom (there should only be one)
+        /// Gets all kingdoms for a specific user
         /// </summary>
-        public async Task<Kingdom?> GetKingdomAsync()
+        public async Task<List<Kingdom>> GetUserKingdomsAsync(string userId)
             {
-            return await _kingdomCollection.Find(_ => true).FirstOrDefaultAsync();
+            var user = await _userCollection
+                .Find(u => u.UserId == userId)
+                .FirstOrDefaultAsync();
+
+            return user?.SavedKingdoms ?? new List<Kingdom>();
             }
 
         /// <summary>
-        /// Updates the kingdom
+        /// Gets a specific kingdom by ID for a user
         /// </summary>
-        public async Task<bool> UpdateKingdomAsync(Kingdom kingdom)
+        public async Task<Kingdom?> GetKingdomByIdAsync(string userId, string kingdomId)
+            {
+            var user = await _userCollection
+                .Find(u => u.UserId == userId)
+                .FirstOrDefaultAsync();
+
+            return user?.SavedKingdoms.FirstOrDefault(k => k.Id == kingdomId);
+            }
+
+        /// <summary>
+        /// Updates a specific kingdom for a user
+        /// </summary>
+        public async Task<bool> UpdateKingdomAsync(string userId, Kingdom kingdom)
             {
             kingdom.LastSaved = DateTime.UtcNow;
-            var result = await _kingdomCollection.ReplaceOneAsync(
-                k => k.Id == kingdom.Id,
-                kingdom
+
+            var filter = Builders<User>.Filter.And(
+                Builders<User>.Filter.Eq(u => u.UserId, userId),
+                Builders<User>.Filter.ElemMatch(u => u.SavedKingdoms, k => k.Id == kingdom.Id)
             );
+
+            var update = Builders<User>.Update.Set("savedKingdoms.$", kingdom);
+
+            var result = await _userCollection.UpdateOneAsync(filter, update);
             return result.ModifiedCount > 0;
             }
 
         /// <summary>
-        /// Delete kingdom (Reset button)
+        /// Deletes a specific kingdom for a user
         /// </summary>
-        public async Task<bool> DeleteKingdomAsync(string id)
+        public async Task<bool> DeleteKingdomAsync(string userId, string kingdomId)
             {
-            var result = await _kingdomCollection.DeleteOneAsync(k => k.Id == id);
-            return result.DeletedCount > 0;
+            var filter = Builders<User>.Filter.Eq(u => u.UserId, userId);
+            var update = Builders<User>.Update.PullFilter(
+                u => u.SavedKingdoms,
+                k => k.Id == kingdomId
+            );
+
+            var result = await _userCollection.UpdateOneAsync(filter, update);
+            return result.ModifiedCount > 0;
+            }
+
+        /// <summary>
+        /// Deletes all kingdoms for a user
+        /// </summary>
+        public async Task<bool> DeleteAllUserKingdomsAsync(string userId)
+            {
+            var filter = Builders<User>.Filter.Eq(u => u.UserId, userId);
+            var update = Builders<User>.Update.Set(u => u.SavedKingdoms, new List<Kingdom>());
+
+            var result = await _userCollection.UpdateOneAsync(filter, update);
+            return result.ModifiedCount > 0;
             }
 
         #endregion
@@ -148,13 +199,12 @@ namespace Labb3_DB.Mongo
         #region Database Initialization
 
         /// <summary>
-        /// Initialize the database with a new kingdom and starting buildings
+        /// Initialize the database with a new kingdom for the user
         /// </summary>
-        public async Task InitializeDatabaseAsync()
+        public async Task InitializeDatabaseAsync(User currentUser)
             {
-            var existingKingdom = await GetKingdomAsync();
-
-            if (existingKingdom != null)
+            // Check if user already has kingdoms
+            if (currentUser.SavedKingdoms.Any())
                 {
                 return;
                 }
@@ -162,7 +212,9 @@ namespace Labb3_DB.Mongo
             // Create initial kingdom
             var kingdom = new Kingdom
                 {
+                Id = ObjectId.GenerateNewId().ToString(),
                 KingdomName = "Starship Alice",
+                UserId = currentUser.UserId,
                 Gold = 5,
                 GoldPerSecond = 0.5f,
                 Population = 1,
@@ -170,7 +222,8 @@ namespace Labb3_DB.Mongo
                 Happiness = 50,
                 HappinessDecrease = 0.01f,
                 HappinessIncrease = 0,
-                OwnedBuildings = new List<OwnedBuilding>()
+                OwnedBuildings = new List<OwnedBuilding>(),
+                LastSaved = DateTime.UtcNow
                 };
 
             // Give starting building
@@ -189,7 +242,7 @@ namespace Labb3_DB.Mongo
                 kingdom.OwnedBuildings.Add(startingFarm);
                 }
 
-            await CreateKingdomAsync(kingdom);
+            await CreateKingdomAsync(currentUser.UserId, kingdom);
             }
 
         /// <summary>
@@ -204,36 +257,86 @@ namespace Labb3_DB.Mongo
                 return;
                 }
 
-            
             var shopData = ShopData.GetShopBuildings();
             await _buildingsCollection.InsertManyAsync(shopData);
             }
+
+        /// <summary>
+        /// Test MongoDB connection
+        /// </summary>
+        public async Task<string> TestConnectionAsync()
+            {
+            try
+                {
+                await _database.RunCommandAsync((Command<BsonDocument>)"{ping:1}");
+                return "Connection to MongoDB successful!";
+                }
+            catch (Exception ex)
+                {
+                return $"Connection to MongoDB failed: {ex.Message}";
+                }
+            }
+
         #endregion
 
         #region User Authentication
-        public async Task<User> GetUserAsync(string username, string password)
-            {
-            // This is a placeholder for user authentication logic.
-            // Implement user retrieval and authentication as needed.
 
-            return await _userCollection.Find(user => user.Username == username && user.Password == HashPassword(password)).FirstOrDefaultAsync();
+        /// <summary>
+        /// Authenticate user and return user object
+        /// </summary>
+        public async Task<User?> GetUserAsync(string username, string password)
+            {
+            var hashedPassword = HashPassword(password);
+            return await _userCollection
+                .Find(user => user.Username == username && user.Password == hashedPassword)
+                .FirstOrDefaultAsync();
             }
 
-        public async Task CreateUserAsync(string username, string password)
+        /// <summary>
+        /// Create a new user account
+        /// </summary>
+        /// <summary>
+        /// Create a new user account
+        /// </summary>
+        /// <returns>Tuple with success status and message</returns>
+        public async Task<(bool success, string message)> CreateUserAsync(string username, string password)
             {
+            // Check if username already exists
+            var existingUser = await _userCollection
+                .Find(u => u.Username == username)
+                .FirstOrDefaultAsync();
+
+            if (existingUser != null)
+                {
+                return (false, "Username already exists!");
+                }
+
             User user = new User
                 {
                 Username = username,
                 Password = HashPassword(password),
-                UserID = Guid.NewGuid().ToString() // Unique ID for the user - used to link kingdoms to users
+                UserId = Guid.NewGuid().ToString(),
+                SavedKingdoms = new List<Kingdom>()
                 };
 
             await _userCollection.InsertOneAsync(user);
-            MessageBox.Show("User created successfully!");
+            return (true, "User created successfully!");
             }
+
+        /// <summary>
+        /// Get user by userId
+        /// </summary>
+        public async Task<User?> GetUserByIdAsync(string userId)
+            {
+            return await _userCollection
+                .Find(u => u.UserId == userId)
+                .FirstOrDefaultAsync();
+            }
+
         #endregion
 
-        #region User credentials hashing
+        #region Password Hashing
+
         private string HashPassword(string password)
             {
             using (SHA256 sha256Hash = SHA256.Create())
@@ -244,35 +347,17 @@ namespace Labb3_DB.Mongo
 
         private static string GetHash(HashAlgorithm hashAlgorithm, string input)
             {
-
-            // Convert the input string to a byte array and compute the hash.
             byte[] data = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(input));
-
-            // Create a new Stringbuilder to collect the bytes
-            // and create a string.
             var sBuilder = new StringBuilder();
 
-            // Loop through each byte of the hashed data
-            // and format each one as a hexadecimal string.
             for (int i = 0; i < data.Length; i++)
                 {
                 sBuilder.Append(data[i].ToString("x2"));
                 }
 
-            // Return the hexadecimal string.
             return sBuilder.ToString();
             }
 
-        private static bool VerifyHash(HashAlgorithm hashAlgorithm, string input, string hash)
-            {
-            // Hash the input.
-            var hashOfInput = GetHash(hashAlgorithm, input);
-
-            // Create a StringComparer an compare the hashes.
-            StringComparer comparer = StringComparer.OrdinalIgnoreCase;
-
-            return comparer.Compare(hashOfInput, hash) == 0;
-            }
         #endregion
         }
     }

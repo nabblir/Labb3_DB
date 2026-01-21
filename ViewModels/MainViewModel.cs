@@ -2,11 +2,13 @@
 using Labb3_DB.Data;
 using Labb3_DB.Models;
 using Labb3_DB.Mongo;
-using Labb3_DB.ViewModels;
 using Labb3_DB.Views;
 using MaterialDesignThemes.Wpf;
+using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
@@ -15,12 +17,15 @@ namespace Labb3_DB.ViewModels
     public class MainViewModel : BaseViewModel
         {
         private readonly DatabaseService _dbService;
+        private User _currentUser;
         private Kingdom _currentKingdom;
         private List<Building> _buildingTemplates;
-        private PeriodicTimer _gameTick;
-        private PeriodicTimer _saveTimer;
+        private PeriodicTimer? _gameTick;
+        private PeriodicTimer? _saveTimer;
 
-        private string _kingdomName;
+        #region Properties
+
+        private string _kingdomName = string.Empty;
         public string KingdomName
             {
             get => _kingdomName;
@@ -55,7 +60,7 @@ namespace Labb3_DB.ViewModels
             set => SetProperty(ref _maxPopulation, value);
             }
 
-        private string _eventsLog;
+        private string _eventsLog = string.Empty;
         public string EventsLog
             {
             get => _eventsLog;
@@ -83,8 +88,20 @@ namespace Labb3_DB.ViewModels
             set => SetProperty(ref _happiness, value);
             }
 
+        private bool _isLoading;
+        public bool IsLoading
+            {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+            }
+
         public ObservableCollection<BuildingViewModel> OwnedBuildings { get; set; }
         public ObservableCollection<BuildingViewModel> ShopBuildings { get; set; }
+        public ObservableCollection<Kingdom> UserKingdoms { get; set; }
+
+        #endregion
+
+        #region Commands
 
         public ICommand OpenBuildingDialogCommand { get; }
         public ICommand SaveGameCommand { get; }
@@ -94,144 +111,306 @@ namespace Labb3_DB.ViewModels
         public ICommand ExitCommand { get; }
         public ICommand BuyBuildingCommand { get; }
 
-        public MainViewModel()
+        #endregion
+
+        public MainViewModel(User user, Kingdom? selectedKingdom, bool shouldCreateNew)
             {
             _dbService = new DatabaseService();
+            _currentUser = user ?? throw new ArgumentNullException(nameof(user));
+
             OwnedBuildings = new ObservableCollection<BuildingViewModel>();
             ShopBuildings = new ObservableCollection<BuildingViewModel>();
+            UserKingdoms = new ObservableCollection<Kingdom>(_currentUser.SavedKingdoms);
 
-            OpenBuildingDialogCommand = new RelayCommand(async (building) =>
+            // Initialize commands
+            OpenBuildingDialogCommand = new RelayCommand(async building =>
             {
                 if (building is BuildingViewModel bvm)
                     {
                     await OpenBuildingDialog(bvm);
                     }
-            });
+            }, _ => !IsLoading);
 
-            SaveGameCommand = new RelayCommand(async (_) => await SaveGameAsync());
-            ResetKingdomCommand = new RelayCommand(async (_) => await ResetKingdom());
-            LoadGameCommand = new RelayCommand(async (_) => await LoadGameDataAsync());
+            SaveGameCommand = new RelayCommand(async _ => await SaveGameAsync(), _ => !IsLoading && _currentKingdom != null);
+            ResetKingdomCommand = new RelayCommand(async _ => await ResetKingdom(), _ => !IsLoading && _currentKingdom != null);
+            LoadGameCommand = new RelayCommand(async _ => await ShowKingdomSelectionDialog(), _ => !IsLoading);
             SettingsCommand = new RelayCommand(_ => OpenSettings());
             ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
-            BuyBuildingCommand = new RelayCommand(async (param) => await BuyBuilding(param));
+            BuyBuildingCommand = new RelayCommand(async param => await BuyBuilding(param), _ => !IsLoading && _currentKingdom != null);
 
-            SaveGameCommand = new RelayCommand(async (_) => await SaveGameAsync());
-            ResetKingdomCommand = new RelayCommand(async (_) => await ResetKingdom());
-            _ = LoadGameDataAsync();
+            // Initialize with selected or new kingdom
+            _ = InitializeAsync(selectedKingdom, shouldCreateNew);
             }
 
-        private async Task LoadGameDataAsync()
+        #region Initialization
+
+        private async Task InitializeAsync(Kingdom? selectedKingdom, bool shouldCreateNew)
             {
             try
                 {
-                // Initialize database and buildings collection
-                await _dbService.InitializeDatabaseAsync();
+                IsLoading = true;
+
+                // Initialize buildings collection if needed
                 await _dbService.InitializeBuildingsAsync();
-
-                // Load kingdom
-                _currentKingdom = await _dbService.GetKingdomAsync();
-
-                if (_currentKingdom != null)
-                    {
-                    Gold = _currentKingdom.Gold;
-                    KingdomName = _currentKingdom.KingdomName;
-                    GoldPerSecond = _currentKingdom.GoldPerSecond;
-                    Population = _currentKingdom.Population;
-                    MaxPopulation = _currentKingdom.MaxPopulation;
-                    Happiness = _currentKingdom.Happiness;
-                    HappinessDecrease = _currentKingdom.HappinessDecrease;
-                    HappinessIncrease = _currentKingdom.HappinessIncrease;
-                    EventsLog = "";
-                    LogEvent($"Kingdom {_currentKingdom.KingdomName} loaded successfully!");
-                    }
-
-                // Load building templates from database
                 _buildingTemplates = await _dbService.GetAllBuildingsAsync();
 
-                OwnedBuildings.Clear();
-                ShopBuildings.Clear();
-
-                // Create ViewModels for all buildings
-                foreach (var template in _buildingTemplates)
+                if (shouldCreateNew)
                     {
-                    var ownedBuilding = _currentKingdom?.OwnedBuildings
-                        .FirstOrDefault(owned => owned.BuildingName == template.Name);
-
-                    var viewModel = new BuildingViewModel(template, ownedBuilding);
-
-                    if (ownedBuilding != null && ownedBuilding.Count > 0)
-                        {
-                        OwnedBuildings.Add(viewModel);
-                        }
-                    else
-                        {
-                        ShopBuildings.Add(viewModel);
-                        }
+                    await CreateNewKingdomInternal();
                     }
-
-
-                RecalculateKingdomStats();
-
-                // Start game loops
-                _gameTick = new PeriodicTimer(TimeSpan.FromSeconds(1));
-                _ = GameTick();
-
-                _saveTimer = new PeriodicTimer(TimeSpan.FromSeconds(10));
-                _ = SaveGameTimerAsync();
+                else if (selectedKingdom != null)
+                    {
+                    _currentKingdom = selectedKingdom;
+                    await LoadKingdomData(_currentKingdom);
+                    }
+                else
+                    {
+                    LogEvent("No kingdom selected.");
+                    }
                 }
             catch (Exception ex)
                 {
                 LogEvent($"ERROR: {ex.Message}");
-                MessageBox.Show($"Failed to load game: {ex.Message}");
+                MessageBox.Show($"Failed to initialize: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            finally
+                {
+                IsLoading = false;
                 }
             }
 
-        private void LogEvent(string message)
-            {
-            var timestamp = DateTime.Now.ToString("HH:mm:ss");
-            EventsLog = $"[{timestamp}] {message}\n{EventsLog}";
+        #endregion
 
-            if (EventsLog.Length > 1000)
+        #region Kingdom Management
+
+        private async Task ShowKingdomSelectionDialog()
+            {
+            try
                 {
-                EventsLog = EventsLog.Substring(0, 1000);
+                IsLoading = true;
+                StopGameLoops();
+
+                // Save current kingdom before showing dialog
+                if (_currentKingdom != null)
+                    {
+                    await SaveGameAsync();
+                    }
+
+                // Refresh user data
+                _currentUser = await _dbService.GetUserByIdAsync(_currentUser.UserId);
+                UserKingdoms.Clear();
+                foreach (var k in _currentUser.SavedKingdoms)
+                    {
+                    UserKingdoms.Add(k);
+                    }
+
+                var selectionViewModel = new KingdomSelectionViewModel(_currentUser);
+                var selectionDialog = new KingdomSelectionDialog
+                    {
+                    DataContext = selectionViewModel
+                    };
+
+                await DialogHost.Show(selectionDialog, "MainDialogHost");
+
+                if (selectionViewModel.ShouldCreateNew)
+                    {
+                    await CreateNewKingdomInternal();
+                    }
+                else if (selectionViewModel.Result != null)
+                    {
+                    _currentKingdom = selectionViewModel.Result;
+                    await LoadKingdomData(_currentKingdom);
+                    }
+                else
+                    {
+                    // User cancelled reload current kingdom
+                    if (_currentKingdom != null)
+                        {
+                        await LoadKingdomData(_currentKingdom);
+                        }
+                    }
+                }
+            catch (Exception ex)
+                {
+                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            finally
+                {
+                IsLoading = false;
+                }
+            }
+
+        private async Task LoadKingdomData(Kingdom kingdom)
+            {
+            if (kingdom == null)
+                return;
+
+            // Set all stats from kingdom
+            Gold = kingdom.Gold;
+            KingdomName = kingdom.KingdomName;
+            GoldPerSecond = kingdom.GoldPerSecond;
+            Population = kingdom.Population;
+            MaxPopulation = kingdom.MaxPopulation;
+            Happiness = kingdom.Happiness;
+            HappinessDecrease = kingdom.HappinessDecrease;
+            HappinessIncrease = kingdom.HappinessIncrease;
+
+            LogEvent($"Kingdom '{kingdom.KingdomName}' loaded!");
+
+            OwnedBuildings.Clear();
+            ShopBuildings.Clear();
+
+            // Create ViewModels for all buildings
+            foreach (var template in _buildingTemplates)
+                {
+                var ownedBuilding = kingdom.OwnedBuildings
+                    .FirstOrDefault(owned => owned.BuildingName == template.Name);
+
+                var viewModel = new BuildingViewModel(template, ownedBuilding);
+
+                if (ownedBuilding != null && ownedBuilding.Count > 0)
+                    {
+                    OwnedBuildings.Add(viewModel);
+                    }
+                else
+                    {
+                    ShopBuildings.Add(viewModel);
+                    }
+                }
+
+            RecalculateKingdomStats();
+
+            // Start game loops
+            StopGameLoops(); // Clean up any existing timers
+            _gameTick = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            _ = GameTick();
+
+            _saveTimer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+            _ = SaveGameTimerAsync();
+            }
+
+        private async Task CreateNewKingdomInternal()
+            {
+            try
+                {
+                var newKingdom = new Kingdom
+                    {
+                    KingdomName = $"Kingdom {_currentUser.SavedKingdoms.Count + 1}",
+                    UserId = _currentUser.UserId,
+                    Gold = 5,
+                    GoldPerSecond = 0.5f,
+                    Population = 1,
+                    MaxPopulation = 5,
+                    Happiness = 50,
+                    HappinessDecrease = 0.01f,
+                    HappinessIncrease = 0,
+                    OwnedBuildings = new List<OwnedBuilding>()
+                    };
+
+                // Give starting building
+                var farmTemplate = _buildingTemplates?.FirstOrDefault(b => b.Name == "Farm");
+                if (farmTemplate != null)
+                    {
+                    var startingFarm = new OwnedBuilding
+                        {
+                        BuildingName = "Farm",
+                        Count = 1,
+                        Level = 1
+                        };
+                    startingFarm.RecalculateTotals(farmTemplate);
+                    newKingdom.OwnedBuildings.Add(startingFarm);
+                    }
+
+                await _dbService.CreateKingdomAsync(_currentUser.UserId, newKingdom);
+
+                // Refresh user data
+                _currentUser = await _dbService.GetUserByIdAsync(_currentUser.UserId);
+                _currentKingdom = _currentUser.SavedKingdoms.FirstOrDefault(k => k.Id == newKingdom.Id);
+
+                // Update kingdoms collection
+                UserKingdoms.Clear();
+                foreach (var k in _currentUser.SavedKingdoms)
+                    {
+                    UserKingdoms.Add(k);
+                    }
+
+                LogEvent($"New kingdom '{newKingdom.KingdomName}' created!");
+                await LoadKingdomData(_currentKingdom);
+                }
+            catch (Exception ex)
+                {
+                MessageBox.Show($"Error creating kingdom: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
 
         private async Task ResetKingdom()
             {
+            if (_currentKingdom == null)
+                return;
+
             var result = MessageBox.Show(
-                "Are you sure you want to reset your kingdom?\n\nThis will delete ALL your progress!\nThis action cannot be undone!",
-                "⚠ Confirm Reset",
+                $"Are you sure you want to delete '{_currentKingdom.KingdomName}'?\n\nThis will delete ALL progress for this kingdom!\nThis action cannot be undone!",
+                "⚠ Confirm Delete",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning
             );
 
-            if (result == MessageBoxResult.Yes)
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            try
                 {
-                try
+                IsLoading = true;
+                StopGameLoops();
+
+                string deletedKingdomName = _currentKingdom.KingdomName;
+                await _dbService.DeleteKingdomAsync(_currentUser.UserId, _currentKingdom.Id);
+
+                // Refresh user data
+                _currentUser = await _dbService.GetUserByIdAsync(_currentUser.UserId);
+
+                // Update kingdoms collection
+                UserKingdoms.Clear();
+                foreach (var k in _currentUser.SavedKingdoms)
                     {
-                    _gameTick?.Dispose();
-                    _saveTimer?.Dispose();
-
-                    if (_currentKingdom?.Id != null)
-                        {
-                        await _dbService.DeleteKingdomAsync(_currentKingdom.Id);
-                        }
-
-                    LogEvent("Kingdom reset! Restarting application...");
-                    await Task.Delay(1000);
-
-                    System.Diagnostics.Process.Start(
-                        System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
-                    );
-                    Application.Current.Shutdown();
+                    UserKingdoms.Add(k);
                     }
-                catch (Exception ex)
+
+                LogEvent($"Kingdom '{deletedKingdomName}' deleted!");
+
+                // Load another kingdom or clear the screen
+                _currentKingdom = _currentUser.SavedKingdoms.FirstOrDefault();
+                if (_currentKingdom != null)
                     {
-                    MessageBox.Show($"Error resetting kingdom: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await LoadKingdomData(_currentKingdom);
+                    }
+                else
+                    {
+                    // Clear all UI
+                    OwnedBuildings.Clear();
+                    ShopBuildings.Clear();
+                    Gold = 0;
+                    KingdomName = string.Empty;
+                    Population = 0;
+                    MaxPopulation = 0;
+                    Happiness = 0;
+                    GoldPerSecond = 0;
+                    LogEvent("No kingdoms remaining. Create a new one!");
                     }
                 }
+            catch (Exception ex)
+                {
+                MessageBox.Show($"Error deleting kingdom: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            finally
+                {
+                IsLoading = false;
+                }
             }
+
+        #endregion
+
+        #region Game Logic
 
         private void RecalculateKingdomStats()
             {
@@ -249,46 +428,72 @@ namespace Labb3_DB.ViewModels
                 }
 
             // Update kingdom totals
-            GoldPerSecond = _currentKingdom.OwnedBuildings.Sum(ownedBuilding => ownedBuilding.TotalIncome);
+            GoldPerSecond = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalIncome);
             _currentKingdom.GoldPerSecond = GoldPerSecond;
 
-            Population = _currentKingdom.OwnedBuildings.Sum(ownedBuilding => ownedBuilding.TotalPopulationCost);
+            Population = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalPopulationCost);
             _currentKingdom.Population = Population;
 
-            MaxPopulation = 5 + _currentKingdom.OwnedBuildings.Sum(ownedBuilding => ownedBuilding.TotalMaxPopulation);
+            MaxPopulation = 5 + _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalMaxPopulation);
             _currentKingdom.MaxPopulation = MaxPopulation;
 
-            HappinessIncrease = _currentKingdom.OwnedBuildings.Sum(ownedBuilding => ownedBuilding.TotalHappinessIncrease);
+            HappinessIncrease = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalHappinessIncrease);
             _currentKingdom.HappinessIncrease = HappinessIncrease;
 
-            HappinessDecrease = _currentKingdom.OwnedBuildings.Sum(ownedBuilding => ownedBuilding.TotalHappinessDecrease);
+            HappinessDecrease = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalHappinessDecrease);
             _currentKingdom.HappinessDecrease = HappinessDecrease;
             }
 
         private async Task GameTick()
             {
-            while (await _gameTick.WaitForNextTickAsync())
-                {
-                _currentKingdom.Gold += _currentKingdom.GoldPerSecond;
-                _currentKingdom.Happiness += _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
-                _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
+            if (_gameTick == null)
+                return;
 
-                Happiness = _currentKingdom.Happiness;
-                Gold = _currentKingdom.Gold;
+            try
+                {
+                while (await _gameTick.WaitForNextTickAsync())
+                    {
+                    if (_currentKingdom == null)
+                        break;
+
+                    _currentKingdom.Gold += _currentKingdom.GoldPerSecond;
+                    _currentKingdom.Happiness += _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
+                    _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
+
+                    Happiness = _currentKingdom.Happiness;
+                    Gold = _currentKingdom.Gold;
+                    }
+                }
+            catch (OperationCanceledException)
+                {
+                // Timer was cancelled, this is expected
                 }
             }
 
         private async Task SaveGameTimerAsync()
             {
-            while (await _saveTimer.WaitForNextTickAsync())
+            if (_saveTimer == null)
+                return;
+
+            try
                 {
-                await SaveGameAsync();
+                while (await _saveTimer.WaitForNextTickAsync())
+                    {
+                    await SaveGameAsync();
+                    }
+                }
+            catch (OperationCanceledException)
+                {
+                // Timer was cancelled, this is expected
                 }
             }
 
         private async Task SaveGameAsync()
             {
-            if (_currentKingdom?.Id != null)
+            if (_currentKingdom?.Id == null)
+                return;
+
+            try
                 {
                 _currentKingdom.Gold = Gold;
                 _currentKingdom.GoldPerSecond = GoldPerSecond;
@@ -298,19 +503,40 @@ namespace Labb3_DB.ViewModels
                 _currentKingdom.HappinessIncrease = HappinessIncrease;
                 _currentKingdom.HappinessDecrease = HappinessDecrease;
 
-                await _dbService.UpdateKingdomAsync(_currentKingdom);
-                Debug.WriteLine($"[SaveGame] Kingdom saved at {DateTime.Now:HH:mm:ss}");
+                bool success = await _dbService.UpdateKingdomAsync(_currentUser.UserId, _currentKingdom);
+                if (success)
+                    {
+                    Debug.WriteLine($"[SaveGame] Kingdom '{_currentKingdom.KingdomName}' saved at {DateTime.Now:HH:mm:ss}");
+                    }
+                else
+                    {
+                    Debug.WriteLine($"[SaveGame] Failed to save kingdom at {DateTime.Now:HH:mm:ss}");
+                    }
+                }
+            catch (Exception ex)
+                {
+                Debug.WriteLine($"[SaveGame] Error: {ex.Message}");
                 }
             }
 
+        private void StopGameLoops()
+            {
+            _gameTick?.Dispose();
+            _gameTick = null;
+            _saveTimer?.Dispose();
+            _saveTimer = null;
+            }
+
+        #endregion
+
+        #region Building Operations
+
         private async Task BuyBuilding(object? parameter)
             {
-            var buildingViewModel = parameter as BuildingViewModel;
-            if (buildingViewModel == null)
+            if (parameter is not BuildingViewModel buildingViewModel || _currentKingdom == null)
                 return;
 
             var template = buildingViewModel.BuildingTemplate;
-
 
             if (Gold < buildingViewModel.CurrentCost)
                 {
@@ -324,50 +550,49 @@ namespace Labb3_DB.ViewModels
                 return;
                 }
 
-
-            Gold -= buildingViewModel.CurrentCost;
-            _currentKingdom.Gold = Gold;
-
-
-            var ownedBuilding = _currentKingdom.OwnedBuildings
-                .FirstOrDefault(ob => ob.BuildingName == template.Name);
-
-            if (ownedBuilding == null)
+            try
                 {
-                ownedBuilding = new OwnedBuilding
+                Gold -= buildingViewModel.CurrentCost;
+                _currentKingdom.Gold = Gold;
+
+                var ownedBuilding = _currentKingdom.OwnedBuildings
+                    .FirstOrDefault(ob => ob.BuildingName == template.Name);
+
+                if (ownedBuilding == null)
                     {
-                    BuildingName = template.Name,
-                    Count = 1,
-                    Level = 1
-                    };
-                ownedBuilding.RecalculateTotals(template);
-                _currentKingdom.OwnedBuildings.Add(ownedBuilding);
+                    ownedBuilding = new OwnedBuilding
+                        {
+                        BuildingName = template.Name,
+                        Count = 1,
+                        Level = 1
+                        };
+                    ownedBuilding.RecalculateTotals(template);
+                    _currentKingdom.OwnedBuildings.Add(ownedBuilding);
 
-                LogEvent($"Bought a {template.Name}!");
+                    LogEvent($"Bought a {template.Name}!");
+                    }
+                else
+                    {
+                    ownedBuilding.Count++;
+                    ownedBuilding.RecalculateTotals(template);
+
+                    LogEvent($"Bought another {template.Name}!");
+                    }
+
+                RecalculateKingdomStats();
+                await RefreshBuildingCollections();
+                await SaveGameAsync();
                 }
-            else
+            catch (Exception ex)
                 {
-                ownedBuilding.Count++;
-                ownedBuilding.RecalculateTotals(template);
-
-                LogEvent($"Bought another {template.Name}!");
+                LogEvent($"Error buying building: {ex.Message}");
                 }
-
-
-            RecalculateKingdomStats();
-
-            // Move building from shop to owned
-            await RefreshBuildingCollections();
-
-            // Save
-            await SaveGameAsync();
             }
 
         private async Task OpenBuildingDialog(BuildingViewModel buildingViewModel)
             {
             var template = buildingViewModel.BuildingTemplate;
             var ownedBuilding = buildingViewModel.OwnedBuilding;
-
 
             var dialogViewModel = new BuildingDetailDialogViewModel(
                 template,
@@ -378,41 +603,17 @@ namespace Labb3_DB.ViewModels
                 () => GetOwnedBuilding(template.Name)
             );
 
-
             var view = new BuildingDetailDialog
                 {
                 DataContext = dialogViewModel
                 };
 
-
             await DialogHost.Show(view, "MainDialogHost");
-
             await RefreshBuildingCollections();
-            }
-
-        private OwnedBuilding? GetOwnedBuilding(string buildingName)
-            {
-            return _currentKingdom?.OwnedBuildings
-                .FirstOrDefault(ownedBuilding => ownedBuilding.BuildingName == buildingName);
-            }
-
-        private void UpdateGold(double amount)
-            {
-            Gold += amount;
-            _currentKingdom.Gold = Gold;
-            }
-
-        private void UpdateGameStats()
-            {
-            RecalculateKingdomStats();
-
-            // Save immediately after purchase/upgrade/sell
-            _ = SaveGameAsync();
             }
 
         private async Task RefreshBuildingCollections()
             {
-
             foreach (var template in _buildingTemplates)
                 {
                 var ownedBuilding = _currentKingdom?.OwnedBuildings
@@ -450,9 +651,48 @@ namespace Labb3_DB.ViewModels
                 }
             }
 
+        #endregion
+
+        #region Helper Methods
+
+        private OwnedBuilding? GetOwnedBuilding(string buildingName)
+            {
+            return _currentKingdom?.OwnedBuildings
+                .FirstOrDefault(ob => ob.BuildingName == buildingName);
+            }
+
+        private void UpdateGold(double amount)
+            {
+            Gold += amount;
+            if (_currentKingdom != null)
+                {
+                _currentKingdom.Gold = Gold;
+                }
+            }
+
+        private void UpdateGameStats()
+            {
+            RecalculateKingdomStats();
+            _ = SaveGameAsync();
+            }
+
+        private void LogEvent(string message)
+            {
+            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            EventsLog = $"[{timestamp}] {message}\n{EventsLog}";
+
+            if (EventsLog.Length > 1000)
+                {
+                EventsLog = EventsLog.Substring(0, 1000);
+                }
+            }
+
         private void OpenSettings()
             {
             MessageBox.Show("Settings not implemented yet", "Settings", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+
+        #endregion
+
         }
     }

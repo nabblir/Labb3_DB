@@ -49,5 +49,8 @@ namespace Labb3_DB.Models
 
         [BsonElement("ownedBuildings")]
         public List<OwnedBuilding> OwnedBuildings { get; set; } = new List<OwnedBuilding>();
+
+        [BsonElement("UserID")]
+        public string UserId { get; set; } = string.Empty;
         }
     }

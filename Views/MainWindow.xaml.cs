@@ -10,10 +10,10 @@ namespace Labb3_DB
     {
     public partial class MainWindow : Window
         {
-        public MainWindow()
+        public MainWindow(User user, Kingdom? selectedKingdom, bool shouldCreateNew)
             {
             InitializeComponent();
-            DataContext = new MainViewModel(); 
+            DataContext = new MainViewModel(user, selectedKingdom, shouldCreateNew);
             }
         }
     }

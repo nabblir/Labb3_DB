@@ -12,13 +12,13 @@ namespace Labb3_DB.Models
         public string? Id { get; set; }
 
         [BsonElement("userID")]
-        public string? UserID { get; set; }
+        public string UserId { get; set; } = string.Empty;
 
         [BsonElement("userName")]
-        public string? Username { get; set; }
-        
+        public string Username { get; set; } = string.Empty;
+
         [BsonElement("password")]
-        public string? Password { get; set; }
+        public string Password { get; set; } = string.Empty;
 
         [BsonElement("savedKingdoms")]
         public List<Kingdom> SavedKingdoms { get; set; } = new List<Kingdom>();
