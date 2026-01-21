@@ -3,8 +3,11 @@ using Labb3_DB.Models;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Security.Policy;
+using System.Text;
 using System.Threading.Tasks;
-
+using System.Windows;
 namespace Labb3_DB.Mongo
     {
     /// <summary>
@@ -15,10 +18,9 @@ namespace Labb3_DB.Mongo
         private readonly IMongoDatabase _database;
         private readonly IMongoCollection<Kingdom> _kingdomCollection;
         private readonly IMongoCollection<Building> _buildingsCollection;
-
+        private readonly IMongoCollection<User> _userCollection;
         private const string ConnectionString = "mongodb://localhost:27017";
         private const string DatabaseName = "KevinSpehling";
-
         public DatabaseService()
             {
             var client = new MongoClient(ConnectionString);
@@ -26,6 +28,8 @@ namespace Labb3_DB.Mongo
 
             _kingdomCollection = _database.GetCollection<Kingdom>("kingdoms");
             _buildingsCollection = _database.GetCollection<Building>("buildings");
+            _userCollection = _database.GetCollection<User>("users");
+
             }
 
         #region Kingdom CRUD Operations
@@ -204,7 +208,71 @@ namespace Labb3_DB.Mongo
             var shopData = ShopData.GetShopBuildings();
             await _buildingsCollection.InsertManyAsync(shopData);
             }
+        #endregion
 
+        #region User Authentication
+        public async Task<User> GetUserAsync(string username, string password)
+            {
+            // This is a placeholder for user authentication logic.
+            // Implement user retrieval and authentication as needed.
+
+            return await _userCollection.Find(user => user.Username == username && user.Password == HashPassword(password)).FirstOrDefaultAsync();
+            }
+
+        public async Task CreateUserAsync(string username, string password)
+            {
+            User user = new User
+                {
+                Username = username,
+                Password = HashPassword(password),
+                UserID = Guid.NewGuid().ToString() // Unique ID for the user - used to link kingdoms to users
+                };
+
+            await _userCollection.InsertOneAsync(user);
+            MessageBox.Show("User created successfully!");
+            }
+        #endregion
+
+        #region User credentials hashing
+        private string HashPassword(string password)
+            {
+            using (SHA256 sha256Hash = SHA256.Create())
+                {
+                return GetHash(sha256Hash, password);
+                }
+            }
+
+        private static string GetHash(HashAlgorithm hashAlgorithm, string input)
+            {
+
+            // Convert the input string to a byte array and compute the hash.
+            byte[] data = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(input));
+
+            // Create a new Stringbuilder to collect the bytes
+            // and create a string.
+            var sBuilder = new StringBuilder();
+
+            // Loop through each byte of the hashed data
+            // and format each one as a hexadecimal string.
+            for (int i = 0; i < data.Length; i++)
+                {
+                sBuilder.Append(data[i].ToString("x2"));
+                }
+
+            // Return the hexadecimal string.
+            return sBuilder.ToString();
+            }
+
+        private static bool VerifyHash(HashAlgorithm hashAlgorithm, string input, string hash)
+            {
+            // Hash the input.
+            var hashOfInput = GetHash(hashAlgorithm, input);
+
+            // Create a StringComparer an compare the hashes.
+            StringComparer comparer = StringComparer.OrdinalIgnoreCase;
+
+            return comparer.Compare(hashOfInput, hash) == 0;
+            }
         #endregion
         }
     }
