@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using Labb3_DB.ViewModels;
+using MongoDB.Bson.Serialization.Attributes;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -7,7 +8,7 @@ namespace Labb3_DB.Models
     /// <summary>
     /// Represents a building that the player owns (stored in Kingdom.OwnedBuildings)
     /// </summary>
-    public class OwnedBuilding : INotifyPropertyChanged
+    public class OwnedBuilding : BaseViewModel
         {
         [BsonElement("buildingName")]
         public string BuildingName { get; set; } = string.Empty; // Reference to Building.Name
@@ -106,31 +107,31 @@ namespace Labb3_DB.Models
         /// <summary>
         /// Recalculate all totals based on the building template
         /// </summary>
-        public void RecalculateTotals(Building template)
+        public void RecalculateTotals(Building template, bool? isChurch = false, float? currentHappiness = null)
             {
-            IncomePerBuilding = template.BaseIncome * ( Level * 5 );
+            IncomePerBuilding = template.BaseIncome * Level;
             TotalIncome = IncomePerBuilding * Count;
             TotalPopulationCost = template.PopulationCost * Count;
             TotalMaxPopulation = template.MaxPopulation * Count;
             TotalHappinessIncrease = template.HappinessIncrease * Count * Level;
             TotalHappinessDecrease = template.HappinessDecrease * Count;
+
+            //Church check
+            if (isChurch == true && currentHappiness != null)
+                {
+                if (currentHappiness >= 75)
+                    {
+                    TotalIncome = IncomePerBuilding * Count;
+                    }
+                else if (currentHappiness < 50)
+                    {
+                    TotalIncome = -( ( IncomePerBuilding * Count ) * 2 );
+                    }
+                else
+                    {
+                    TotalIncome = 0;
+                    }
+                }
             }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-            {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-            }
-
-        protected virtual bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-            {
-            if (EqualityComparer<T>.Default.Equals(field, value))
-                return false;
-
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
-            }
-        }
     }
+}

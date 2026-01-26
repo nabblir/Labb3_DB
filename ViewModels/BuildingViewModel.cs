@@ -1,5 +1,6 @@
 ﻿using Labb3_DB.Models;
 using System;
+using System.Diagnostics;
 
 namespace Labb3_DB.ViewModels
     {
@@ -94,6 +95,7 @@ namespace Labb3_DB.ViewModels
             OnPropertyChanged(nameof(TotalHappinessIncrease));
             OnPropertyChanged(nameof(TotalHappinessDecrease));
             OnPropertyChanged(nameof(IsOwned));
+            Debug.WriteLine($"[Church] Property changed: {e.PropertyName}, TotalIncome: {_ownedBuilding?.TotalIncome}");
             }
 
         public bool IsOwned => _ownedBuilding != null && _ownedBuilding.Count > 0;

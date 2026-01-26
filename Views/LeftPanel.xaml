@@ -44,6 +44,8 @@
                             Minimum="0" Maximum="100" Height="10" Margin="0,5,0,5"/>
                 <TextBlock Text="{Binding Happiness, StringFormat={}{0:0}%}" 
                           Style="{StaticResource MaterialDesignBody2TextBlock}" HorizontalAlignment="Right"/>
+                <TextBlock Text="{Binding HappinessDisplay, StringFormat={} Happiness per second: {0:0.##}%}"
+                          Style="{StaticResource MaterialDesignBody2TextBlock}"/>
             </StackPanel>
         </materialDesign:Card>
 
@@ -60,7 +62,7 @@
                        Command="{Binding LoadGameCommand}"
                        Style="{StaticResource MaterialDesignRaisedButton}" BorderBrush="Black"/>
                 <Button Content="⚙ Settings" Margin="0,5" Height="40" 
-                       Command="{Binding SettingsCommand}" BorderBrush="Black"/>
+                       Command="{Binding SettingsCommand}" BorderBrush="Black" Visibility="Hidden"/>
                 <Button Content="⭮ Reset Kingdom" Margin="0,5" Height="40"
                        Command="{Binding ResetKingdomCommand}"
                        Background="Purple" BorderBrush="Black"/>

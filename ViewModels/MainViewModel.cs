@@ -80,7 +80,12 @@ namespace Labb3_DB.ViewModels
             get => _happinessIncrease;
             set => SetProperty(ref _happinessIncrease, value);
             }
-
+        private float _happinessDisplay;
+        public float HappinessDisplay
+            {
+            get => _happinessDisplay;
+            set => SetProperty(ref _happinessDisplay, value);
+            }
         private float _happiness;
         public float Happiness
             {
@@ -424,12 +429,19 @@ namespace Labb3_DB.ViewModels
                 if (template != null)
                     {
                     ownedBuilding.RecalculateTotals(template);
+
+                    //Church building check
+                    if (ownedBuilding.BuildingName == "Church")
+                        {
+                            ownedBuilding.RecalculateTotals(template, true, Happiness);
+                        }
                     }
                 }
 
             // Update kingdom totals
             GoldPerSecond = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalIncome);
             _currentKingdom.GoldPerSecond = GoldPerSecond;
+            _currentKingdom.Gold += _currentKingdom.GoldPerSecond;
 
             Population = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalPopulationCost);
             _currentKingdom.Population = Population;
@@ -442,6 +454,9 @@ namespace Labb3_DB.ViewModels
 
             HappinessDecrease = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalHappinessDecrease);
             _currentKingdom.HappinessDecrease = HappinessDecrease;
+
+            _currentKingdom.Happiness += _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
+            _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
             }
 
         private async Task GameTick()
@@ -455,11 +470,8 @@ namespace Labb3_DB.ViewModels
                     {
                     if (_currentKingdom == null)
                         break;
-
-                    _currentKingdom.Gold += _currentKingdom.GoldPerSecond;
-                    _currentKingdom.Happiness += _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
-                    _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
-
+                    RecalculateKingdomStats();
+                    HappinessDisplay = _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
                     Happiness = _currentKingdom.Happiness;
                     Gold = _currentKingdom.Gold;
                     }
@@ -598,6 +610,8 @@ namespace Labb3_DB.ViewModels
                 template,
                 ownedBuilding,
                 Gold,
+                Population,
+                () => GetPopulation(true),
                 UpdateGold,
                 UpdateGameStats,
                 () => GetOwnedBuilding(template.Name)
@@ -669,7 +683,15 @@ namespace Labb3_DB.ViewModels
                 _currentKingdom.Gold = Gold;
                 }
             }
-
+        /// <summary>
+        /// Returns either the current population or max population based on the parameter
+        /// </summary>
+        /// <param name="isMaxPopulation"></param>
+        /// <returns></returns>
+        private int GetPopulation(bool isMaxPopulation = false)
+            {
+            return isMaxPopulation ? MaxPopulation : Population;
+            }
         private void UpdateGameStats()
             {
             RecalculateKingdomStats();

@@ -6,6 +6,7 @@
 
     <UserControl.Resources>
         <commands:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <commands:NonZeroVisibilityConverter x:Key="NonZeroVisibilityConverter"/>
     </UserControl.Resources>
 
     <materialDesign:Card Margin="5" Padding="5" Background="#2C3E50" BorderBrush="Black">
@@ -65,7 +66,12 @@
                                             <Run Text="{Binding TotalHappinessIncrease, Mode=OneWay}" FontWeight="Bold"/>
                                         </TextBlock>
                                         <TextBlock FontSize="12" TextAlignment="Center" TextWrapping="Wrap"
-                                                  Visibility="{Binding TotalIncome, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                                  Visibility="{Binding TotalHappinessDecrease, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                                            <Run Text="😞 Happiness: "/>
+                                            <Run Text="{Binding TotalHappinessDecrease, StringFormat='-{0:F2}', Mode=OneWay}" FontWeight="Bold"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" TextAlignment="Center" TextWrapping="Wrap"
+                                                  Visibility="{Binding TotalIncome, Mode=OneWay, Converter={StaticResource NonZeroVisibilityConverter}}">
                                             <Run Text="💰 GPS: "/>
                                             <Run Text="{Binding TotalIncome, Mode=OneWay, StringFormat='{}{0:F1}'}" FontWeight="Bold"/>
                                         </TextBlock>

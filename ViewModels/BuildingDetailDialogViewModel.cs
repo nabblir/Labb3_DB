@@ -4,38 +4,18 @@ using System.Windows.Input;
 using Labb3_DB.Commands;
 using Labb3_DB.Models;
 using MaterialDesignThemes.Wpf;
-
+using System.Diagnostics;
 namespace Labb3_DB.ViewModels
     {
-    public class BuildingDetailDialogViewModel : INotifyPropertyChanged
+    public class BuildingDetailDialogViewModel : BaseViewModel
         {
         private readonly Building _buildingTemplate;
         private readonly Action<double> _updateGold;
         private readonly Action _updateStats;
         private readonly Func<OwnedBuilding?> _getOwnedBuilding;
-
-        public BuildingDetailDialogViewModel(
-            Building buildingTemplate,
-            OwnedBuilding? ownedBuilding,
-            double currentGold,
-            Action<double> updateGold,
-            Action updateStats,
-            Func<OwnedBuilding?> getOwnedBuilding)
-            {
-            _buildingTemplate = buildingTemplate;
-            OwnedBuilding = ownedBuilding;
-            CurrentGold = currentGold;
-            _updateGold = updateGold;
-            _updateStats = updateStats;
-            _getOwnedBuilding = getOwnedBuilding;
-
-            // Initialize commands
-            BuyBuildingCommand = new RelayCommand(_ => BuyBuilding(), _ => CanBuy());
-            BuyMoreBuildingCommand = new RelayCommand(_ => BuyMoreBuilding(), _ => CanBuyMore());
-            UpgradeBuildingCommand = new RelayCommand(_ => UpgradeBuilding(), _ => CanUpgrade());
-            SellBuildingCommand = new RelayCommand(_ => SellBuilding(), _ => CanSell());
-            CloseDialogCommand = new RelayCommand(_ => CloseDialog());
-            }
+        private readonly Func<int> _getCurrentMaxPopulation;
+        private PeriodicTimer? _resetClickTimer;
+        private bool _canClick = true;
 
         #region Properties
 
@@ -71,7 +51,28 @@ namespace Labb3_DB.ViewModels
                 CommandManager.InvalidateRequerySuggested();
                 }
             }
-
+        private int _currentPopulation;
+        public int CurrentPopulation
+            {
+            get => _currentPopulation;
+            set
+                {
+                _currentPopulation = value;
+                OnPropertyChanged();
+                CommandManager.InvalidateRequerySuggested();
+                }
+            }
+        private int _currentMaxPopulation;
+        public int CurrentMaxPopulation
+            {
+            get => _currentMaxPopulation;
+            set
+                {
+                _currentMaxPopulation = value;
+                OnPropertyChanged();
+                CommandManager.InvalidateRequerySuggested();
+                }
+            }
         public bool IsOwned => OwnedBuilding != null && OwnedBuilding.Count > 0;
 
         public int Count => OwnedBuilding?.Count ?? 0;
@@ -110,6 +111,46 @@ namespace Labb3_DB.ViewModels
 
         #endregion
 
+        public BuildingDetailDialogViewModel(
+           Building buildingTemplate,
+           OwnedBuilding? ownedBuilding,
+           double currentGold,
+           int currentPopulation,
+           Func<int> currentMaxPopulation,
+           Action<double> updateGold,
+           Action updateStats,
+           Func<OwnedBuilding?> getOwnedBuilding)
+
+            {
+            _buildingTemplate = buildingTemplate;
+            OwnedBuilding = ownedBuilding;
+            CurrentGold = currentGold;
+            _updateGold = updateGold;
+            _updateStats = updateStats;
+            _getOwnedBuilding = getOwnedBuilding;
+            _getCurrentMaxPopulation = currentMaxPopulation;
+            CurrentPopulation = currentPopulation;
+            CurrentMaxPopulation = _getCurrentMaxPopulation();
+            // Initialize commands
+            BuyBuildingCommand = new RelayCommand(_ => BuyBuilding(), _ => CanBuy());
+            BuyMoreBuildingCommand = new RelayCommand(_ => BuyMoreBuilding(), _ => CanBuyMore());
+            UpgradeBuildingCommand = new RelayCommand(_ => UpgradeBuilding(), _ => CanUpgrade());
+            SellBuildingCommand = new RelayCommand(_ => SellBuilding(), _ => CanSell());
+            CloseDialogCommand = new RelayCommand(_ => CloseDialog());
+
+            Debug.WriteLine($"BuildingDetailDialogViewModel initialized for building: {_buildingTemplate.Name}");
+            Debug.WriteLine("---------------------------------------------------");
+            Debug.WriteLine($"CurrentGold: {CurrentGold}, IsOwned: {IsOwned}, CurrentCost: {CurrentCost}");
+            Debug.WriteLine($"Count: {Count}, Level: {Level}, UpgradeCost: {UpgradeCost}");
+            Debug.WriteLine($"Population: {CurrentPopulation}/{CurrentMaxPopulation}");
+            Debug.WriteLine("---------------------------------------------------");
+            Debug.WriteLine($"BuyBuildingCommand CanExecute: {CanBuy()}");
+            Debug.WriteLine($"BuyMoreBuildingCommand CanExecute: {CanBuyMore()}");
+            Debug.WriteLine($"UpgradeBuildingCommand CanExecute: {CanUpgrade()}");
+            Debug.WriteLine($"SellBuildingCommand CanExecute: {CanSell()}");
+            Debug.WriteLine("---------------------------------------------------");
+            }
+        
         #region Command Methods
 
         private bool CanBuy()
@@ -119,8 +160,9 @@ namespace Labb3_DB.ViewModels
 
         private void BuyBuilding()
             {
-            if (CurrentGold >= CurrentCost)
+            if (CurrentGold >= CurrentCost && _canClick && CurrentPopulation + _buildingTemplate.PopulationCost < CurrentMaxPopulation)
                 {
+
                 double cost = CurrentCost;
                 _updateGold(-cost);
                 CurrentGold -= cost;
@@ -131,12 +173,43 @@ namespace Labb3_DB.ViewModels
                 OwnedBuilding = _getOwnedBuilding();
 
                 CommandManager.InvalidateRequerySuggested();
+
+                //Prevent spamming the buy button, which otherwise would cause player to be able to buy more than one building at a time
+                _canClick = false;
+                _resetClickTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+                _ = ResetClick();
+                }
+            }
+
+        private async Task ResetClick()
+            {
+            if (_resetClickTimer == null)
+                return;
+
+            try
+                {
+                while (await _resetClickTimer.WaitForNextTickAsync())
+                    {
+                    _canClick = true;
+                    _resetClickTimer.Dispose();
+                    }
+                }
+            catch (OperationCanceledException)
+                {
+                // Timer was cancelled, this is expected
                 }
             }
 
         private bool CanBuyMore()
             {
-            return CurrentGold >= CurrentCost && IsOwned;
+            if(_buildingTemplate.BuildingType != "Housing")
+                {
+                return CurrentGold >= CurrentCost && IsOwned && CurrentPopulation + _buildingTemplate.PopulationCost <= CurrentMaxPopulation;
+                }
+            else
+                {
+                return CurrentGold >= CurrentCost && IsOwned;
+                }
             }
 
         private void BuyMoreBuilding()
@@ -246,17 +319,6 @@ namespace Labb3_DB.ViewModels
                 return 0;
             // Sell
             return _buildingTemplate.BaseCost * Math.Pow(_buildingTemplate.CostMultiplier, Count - 1) * 0.5;
-            }
-
-        #endregion
-
-        #region INotifyPropertyChanged
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-            {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }
 
         #endregion

@@ -28,6 +28,29 @@ namespace Labb3_DB.Commands
             return Visibility.Visible;
             }
 
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+            throw new NotImplementedException();
+            }
+        }
+    public class NonZeroVisibilityConverter : IValueConverter
+        {
+        private const double Tolerance = 0.001; // Floating point horror fix?
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+            if (value == null)
+                return Visibility.Collapsed;
+            if (value is int intValue && intValue == 0)
+                return Visibility.Collapsed;
+            if (value is double doubleValue && Math.Abs(doubleValue) < Tolerance)
+                return Visibility.Collapsed;
+            if (value is float floatValue && Math.Abs(floatValue) < Tolerance)
+                return Visibility.Collapsed;
+            return Visibility.Visible;
+            }
+
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             {
             throw new NotImplementedException();
