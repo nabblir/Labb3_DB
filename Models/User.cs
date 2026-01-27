@@ -20,7 +20,10 @@ namespace Labb3_DB.Models
         [BsonElement("password")]
         public string Password { get; set; } = string.Empty;
 
-        [BsonElement("savedKingdoms")]
+        [BsonElement("kingdomIds")]
+        public List<string> KingdomIds { get; set; } = new List<string>();
+
+        [BsonIgnore]
         public List<Kingdom> SavedKingdoms { get; set; } = new List<Kingdom>();
         }
     }
