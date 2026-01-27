@@ -12,6 +12,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Labb3_DB.Views
 {
@@ -20,9 +23,11 @@ namespace Labb3_DB.Views
     /// </summary>
     public partial class ShopPanel : UserControl
     {
+
         public ShopPanel()
         {
             InitializeComponent();
+
         }
     }
 }
