@@ -1,47 +1,77 @@
 ﻿<UserControl
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:commands="clr-namespace:Labb3_DB.Commands" xmlns:av="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="av" x:Class="Labb3_DB.Views.ShopPanel"
-             >
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+    xmlns:commands="clr-namespace:Labb3_DB.Commands"
+    xmlns:av="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="av"
+    x:Class="Labb3_DB.Views.ShopPanel">
 
     <UserControl.Resources>
         <commands:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
     </UserControl.Resources>
 
-    <materialDesign:Card Margin="5" Padding="5" Background="#4A5568" BorderBrush="Black">
-        <StackPanel>
-            <TextBlock Text="Available Buildings" 
-                      Style="{StaticResource MaterialDesignBody1TextBlock}" 
-                      Margin="0,0,0,10"/>
+    <materialDesign:Card Margin="5"
+                          Padding="5"
+                          Background="#4A5568"
+                          BorderBrush="Black">
 
-            <ListView ItemsSource="{Binding ShopBuildings}" Height="380" av:ItemsSource="{av:SampleData ItemCount=5}">
+        <!-- Grid test solution for button bugthingy -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <TextBlock Grid.Row="0"
+                       Text="Available Buildings" 
+                       Style="{StaticResource MaterialDesignBody1TextBlock}" 
+                       Margin="0,0,0,10"/>
+
+            <!-- List -->
+            <ListView Grid.Row="1"
+                      ItemsSource="{Binding ShopBuildings}"
+                      av:ItemsSource="{av:SampleData ItemCount=5}">
+
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Margin="0,10" MaxWidth="200">
-                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                        <StackPanel Margin="0" MaxWidth="200">
+
+                            <TextBlock Text="{Binding Name}"
+                                       FontWeight="Bold"/>
+
                             <TextBlock Text="{Binding Description}" 
-                                      TextWrapping="Wrap" 
-                                      Margin="0,5,0,10" 
-                                      Foreground="LightGray"/>
+                                       TextWrapping="Wrap" 
+                                       Margin="0,5,0,10" 
+                                       Foreground="LightGray"/>
+
                             <TextBlock Text="{Binding CurrentCost, StringFormat=Cost: \{0:F0\} gold}" 
-                                      Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                       Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+
                             <TextBlock Text="{Binding PopulationCost, StringFormat=Population Cost: \{0\}}"
-                                      Visibility="{Binding PopulationCost, Converter={StaticResource NullToVisibilityConverter}, Mode=OneWay}"
-                                      Foreground="Orange"/>
+                                       Visibility="{Binding PopulationCost, Converter={StaticResource NullToVisibilityConverter}, Mode=OneWay}"
+                                       Foreground="Orange"/>
+
                             <TextBlock Text="{Binding BaseIncome, StringFormat=+\{0\} gold/sec}"
+                                       Visibility="{Binding BaseIncome, Converter={StaticResource NullToVisibilityConverter}, Mode=OneWay}"
                                        Foreground="Chocolate"/>
+
                             <Button Content="Purchase" 
-                                       Margin="0,5,0,0" 
-                                       Width="110" 
-                                       Command="{Binding DataContext.BuyBuildingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                       CommandParameter="{Binding}"
-                                       Style="{StaticResource MaterialDesignRaisedButton}" 
-                                       HorizontalAlignment="Left"/>
+                                    Margin="0,5,0,0" 
+                                    Width="110" 
+                                    Command="{Binding DataContext.BuyBuildingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" 
+                                    HorizontalAlignment="Left" BorderBrush="#FF004841"/>
+                            <Separator Margin="8,15,8,0"/>
+
                         </StackPanel>
                     </DataTemplate>
                 </ListView.ItemTemplate>
+
             </ListView>
-        </StackPanel>
+        </Grid>
     </materialDesign:Card>
 </UserControl>

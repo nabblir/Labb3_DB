@@ -32,7 +32,6 @@ namespace Labb3_DB.Views
                 {
                 vm.PasswordLength = Password.Password.Length;
                 vm.Password = Password.Password;  // Set the actual password string
-                Debug.WriteLine($"{vm.Username} = {vm.Username?.Length ?? 0} Password = {vm.Password?.Length ?? 0}");
                 }
             }
         }

@@ -31,7 +31,11 @@ namespace Labb3_DB.ViewModels
             get => _kingdomName;
             set => SetProperty(ref _kingdomName, value);
             }
-
+        public Kingdom CurrentKingdom
+            {
+            get => _currentKingdom;
+            set => SetProperty(ref _currentKingdom, value);
+            }
         private double _gold;
         public double Gold
             {
@@ -100,6 +104,21 @@ namespace Labb3_DB.ViewModels
             set => SetProperty(ref _isLoading, value);
             }
 
+        private bool _showStats;
+        
+        public bool ShowStats
+            {
+            get => _showStats;
+            set => SetProperty(ref _showStats, value);
+            }
+
+        private StatsViewModel _statsViewModel;
+        public StatsViewModel StatsViewModel
+            {
+            get => _statsViewModel;
+            set => SetProperty(ref _statsViewModel, value);
+            }
+
         public ObservableCollection<BuildingViewModel> OwnedBuildings { get; set; }
         public ObservableCollection<BuildingViewModel> ShopBuildings { get; set; }
         public ObservableCollection<Kingdom> UserKingdoms { get; set; }
@@ -112,7 +131,7 @@ namespace Labb3_DB.ViewModels
         public ICommand SaveGameCommand { get; }
         public ICommand ResetKingdomCommand { get; }
         public ICommand LoadGameCommand { get; }
-        public ICommand SettingsCommand { get; }
+        public ICommand ChangeViewCommand { get; }
         public ICommand ExitCommand { get; }
         public ICommand BuyBuildingCommand { get; }
 
@@ -122,7 +141,8 @@ namespace Labb3_DB.ViewModels
             {
             _dbService = new DatabaseService();
             _currentUser = user ?? throw new ArgumentNullException(nameof(user));
-
+            CurrentKingdom = selectedKingdom!;
+            StatsViewModel = new StatsViewModel(this);
             OwnedBuildings = new ObservableCollection<BuildingViewModel>();
             ShopBuildings = new ObservableCollection<BuildingViewModel>();
             UserKingdoms = new ObservableCollection<Kingdom>(_currentUser.SavedKingdoms);
@@ -139,7 +159,7 @@ namespace Labb3_DB.ViewModels
             SaveGameCommand = new RelayCommand(async _ => await SaveGameAsync(), _ => !IsLoading && _currentKingdom != null);
             ResetKingdomCommand = new RelayCommand(async _ => await ResetKingdom(), _ => !IsLoading && _currentKingdom != null);
             LoadGameCommand = new RelayCommand(async _ => await ShowKingdomSelectionDialog(), _ => !IsLoading);
-            SettingsCommand = new RelayCommand(_ => OpenSettings());
+            ChangeViewCommand = new RelayCommand(_ => ChangeView());
             ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
             BuyBuildingCommand = new RelayCommand(async param => await BuyBuilding(param), _ => !IsLoading && _currentKingdom != null);
 
@@ -285,8 +305,8 @@ namespace Labb3_DB.ViewModels
 
             RecalculateKingdomStats();
 
-            // Start game loops
-            StopGameLoops(); // Clean up any existing timers
+            // Start game logic loops
+            StopGameLoops(); // Clean up any existing timers for safety
             _gameTick = new PeriodicTimer(TimeSpan.FromSeconds(1));
             _ = GameTick();
 
@@ -312,7 +332,7 @@ namespace Labb3_DB.ViewModels
                     OwnedBuildings = new List<OwnedBuilding>()
                     };
 
-                // Give starting building
+                // Give a farm starting building
                 var farmTemplate = _buildingTemplates?.FirstOrDefault(b => b.Name == "Farm");
                 if (farmTemplate != null)
                     {
@@ -455,7 +475,7 @@ namespace Labb3_DB.ViewModels
             HappinessDecrease = _currentKingdom.OwnedBuildings.Sum(ob => ob.TotalHappinessDecrease);
             _currentKingdom.HappinessDecrease = HappinessDecrease;
 
-            _currentKingdom.Happiness += _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
+            _currentKingdom.Happiness += GetHappinessPerSecond();
             _currentKingdom.Happiness = Math.Clamp(_currentKingdom.Happiness, 0, 100);
             }
 
@@ -471,7 +491,7 @@ namespace Labb3_DB.ViewModels
                     if (_currentKingdom == null)
                         break;
                     RecalculateKingdomStats();
-                    HappinessDisplay = _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
+                    HappinessDisplay = GetHappinessPerSecond();
                     Happiness = _currentKingdom.Happiness;
                     Gold = _currentKingdom.Gold;
                     }
@@ -630,7 +650,7 @@ namespace Labb3_DB.ViewModels
             {
             foreach (var template in _buildingTemplates)
                 {
-                var ownedBuilding = _currentKingdom?.OwnedBuildings
+                 var ownedBuilding = _currentKingdom?.OwnedBuildings
                     .FirstOrDefault(owned => owned.BuildingName == template.Name);
 
                 var existingOwned = OwnedBuildings.FirstOrDefault(vm => vm.Name == template.Name);
@@ -684,7 +704,7 @@ namespace Labb3_DB.ViewModels
                 }
             }
         /// <summary>
-        /// Returns either the current population or max population based on the parameter
+        /// Returns either the current population or max population based on the parameter, had to use this to fix issues with Building Detail Dialog
         /// </summary>
         /// <param name="isMaxPopulation"></param>
         /// <returns></returns>
@@ -692,15 +712,21 @@ namespace Labb3_DB.ViewModels
             {
             return isMaxPopulation ? MaxPopulation : Population;
             }
+        
+        public float GetHappinessPerSecond()
+            {
+            return _currentKingdom.HappinessIncrease - _currentKingdom.HappinessDecrease;
+            }
+
         private void UpdateGameStats()
             {
             RecalculateKingdomStats();
             _ = SaveGameAsync();
             }
 
-        private void LogEvent(string message)
+        public void LogEvent(string message)
             {
-            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            var timestamp = DateTime.Now.ToString("HH:mm");
             EventsLog = $"[{timestamp}] {message}\n{EventsLog}";
 
             if (EventsLog.Length > 1000)
@@ -709,9 +735,9 @@ namespace Labb3_DB.ViewModels
                 }
             }
 
-        private void OpenSettings()
+        private void ChangeView()
             {
-            MessageBox.Show("Settings not implemented yet", "Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            ShowStats = !ShowStats;
             }
 
         #endregion

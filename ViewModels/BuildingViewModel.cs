@@ -95,7 +95,6 @@ namespace Labb3_DB.ViewModels
             OnPropertyChanged(nameof(TotalHappinessIncrease));
             OnPropertyChanged(nameof(TotalHappinessDecrease));
             OnPropertyChanged(nameof(IsOwned));
-            Debug.WriteLine($"[Church] Property changed: {e.PropertyName}, TotalIncome: {_ownedBuilding?.TotalIncome}");
             }
 
         public bool IsOwned => _ownedBuilding != null && _ownedBuilding.Count > 0;
