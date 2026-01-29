@@ -49,6 +49,13 @@
                         <DropShadowEffect/>
                     </PasswordBox.Effect>
                 </PasswordBox>
+                <CheckBox Content="Remember Me" 
+                          HorizontalAlignment="Center"
+                          IsChecked="{Binding UserRemembered}">
+                    <CheckBox.Effect>
+                        <DropShadowEffect/>
+                    </CheckBox.Effect>
+                </CheckBox>
                 <Button Content="Login" 
                         Width="100" 
                         HorizontalAlignment="Center" 
@@ -78,6 +85,7 @@
                          TextAlignment="Center"
                          IsReadOnly="True"
                          BorderThickness="1" BorderBrush="#FF273746"/>
+                
             </StackPanel>
         </Grid>
     </materialDesign:DialogHost>

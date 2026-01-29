@@ -21,6 +21,7 @@ namespace Labb3_DB.Mongo
         private readonly IMongoCollection<Building> _buildingsCollection;
         private readonly IMongoCollection<User> _userCollection;
         private readonly IMongoCollection<Kingdom> _kingdomsCollection;
+        private readonly IMongoCollection<ApplicationSettings> _settingsCollection;
         private const string ConnectionString = "mongodb://localhost:27017";
         private const string DatabaseName = "KevinSpehling";
 
@@ -32,6 +33,7 @@ namespace Labb3_DB.Mongo
             _buildingsCollection = _database.GetCollection<Building>("buildings");
             _userCollection = _database.GetCollection<User>("users");
             _kingdomsCollection = _database.GetCollection<Kingdom>("kingdoms");
+            _settingsCollection = _database.GetCollection<ApplicationSettings>("applicationSettings");
             }
 
         #region Kingdom CRUD Operations
@@ -284,7 +286,7 @@ namespace Labb3_DB.Mongo
         /// <summary>
         /// Test MongoDB connection
         /// </summary>
-        public async Task<string> TestConnectionAsync()
+        public async Task<string> EstablishConnectionAsync()
         {
             try
             {
@@ -297,6 +299,32 @@ namespace Labb3_DB.Mongo
             }
         }
 
+        public async Task<ApplicationSettings?> GetApplicationSettingsAsync()
+        {
+            bool settingsExist = await _settingsCollection.Find(_ => true).AnyAsync();
+            if (!settingsExist)
+            {
+                var settings = new ApplicationSettings
+                    {
+                    IsRemembered = false,
+                    UserID = string.Empty
+                    };
+                await _settingsCollection.InsertOneAsync(settings);
+                return settings;
+            }
+            else
+                return await _settingsCollection.Find(_ => true).FirstOrDefaultAsync();
+        }
+
+        public async Task<bool> UpdateApplicationSettingsAsync(ApplicationSettings settings)
+        {
+            var result = await _settingsCollection.ReplaceOneAsync(
+                    s => s.Id == settings.Id,
+                    settings
+            );
+            
+            return result.ModifiedCount > 0;
+            }
         #endregion
 
         #region User Authentication
@@ -370,7 +398,7 @@ namespace Labb3_DB.Mongo
 
         #region Password Hashing
 
-        private string HashPassword(string password)
+        public string HashPassword(string password)
         {
             using (SHA256 sha256Hash = SHA256.Create())
             {

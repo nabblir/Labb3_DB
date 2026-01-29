@@ -25,7 +25,7 @@ namespace Labb3_DB.ViewModels
             set
                 {
                 _username = value;
-                OnPropertyChanged(nameof(_username));
+                OnPropertyChanged(nameof(Username));
                 }
             }
         private string _password;
@@ -79,6 +79,17 @@ namespace Labb3_DB.ViewModels
                 }
             }
 
+        private bool _userRemembered = false;
+        public bool UserRemembered
+            {
+            get => _userRemembered;
+            set
+                {
+                _userRemembered = value;
+                OnPropertyChanged(nameof(UserRemembered));
+                }
+            }
+        public ICommand RememberMeCommand { get; }
         public ICommand ExitCommand { get; }
         public ICommand SignupCommand { get; }
         public ICommand LoginCommand { get; }
@@ -90,7 +101,7 @@ namespace Labb3_DB.ViewModels
             ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
             SignupCommand = new RelayCommand(async (_) => await SignUp());
             LoginCommand = new RelayCommand(async (_) => await Login());
-
+            RememberMeCommand = new RelayCommand(async (_) => await UpdateRememberMe());
             _ = TestConnection();
             }
 
@@ -116,6 +127,51 @@ namespace Labb3_DB.ViewModels
                 {
                 StatusTextColor = System.Windows.Media.Brushes.Red;
                 }
+            }
+        private async Task IsUserRememberedAsync()
+            {
+            var settings = await _dbService.GetApplicationSettingsAsync();
+            if (settings != null)
+                {
+                var user = await _dbService.GetUserByIdAsync(settings.UserID);
+                UserRemembered = settings.IsRemembered;
+
+                if (user != null)
+                    {
+                    if (settings.IsRemembered)
+                        {
+                        Username = user.Username;
+                        }
+                    else
+                        {
+                        Username = string.Empty;
+                        }
+                    }
+                }
+            }
+
+        private async Task UpdateRememberMe()
+            {
+            var settings = await _dbService.GetApplicationSettingsAsync();
+
+            if (settings != null)
+                {
+                settings.IsRemembered = UserRemembered;
+                var user = await _dbService.GetUserAsync(Username, Password);
+
+                if (user != null)
+                    {
+                        settings.UserID = user.UserId;
+                    }
+                if (UserRemembered == false)
+                    {
+                        settings.UserID = string.Empty;
+                    }
+
+                await _dbService.UpdateApplicationSettingsAsync(settings);
+                Debug.WriteLine($"Remember Me settings updated. + {settings}");
+                }
+
             }
 
         private async Task Login()
@@ -145,8 +201,11 @@ namespace Labb3_DB.ViewModels
                 StatusMessage = "Login successful!";
                 StatusTextColor = System.Windows.Media.Brushes.Green;
 
+                // Finally, update remember me settings and proceed
+                await UpdateRememberMe();
+
                 // Small delay to show success message, cause i be damned if i dont show my fancy message system!
-                await Task.Delay(300);
+                await Task.Delay(1000);
                 ShowKingdomSelectionAndOpenMainWindow(user);
                 }
             catch (Exception ex)
@@ -183,11 +242,13 @@ namespace Labb3_DB.ViewModels
 
         private async Task TestConnection()
             {
-            string isConnected = await _dbService.TestConnectionAsync(); // I know.. should use bools, but this will return error messages too.
+            string isConnected = await _dbService.EstablishConnectionAsync(); // I know.. should use bools, but this will return error messages too.
             if (isConnected == "Connection to MongoDB successful!") 
                 {
+                await IsUserRememberedAsync();
                 StatusTextColor = System.Windows.Media.Brushes.Green;
                 StatusMessage = isConnected;
+
                 }
             else
                 {
