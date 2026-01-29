@@ -28,8 +28,8 @@ Starship Alice is a feature-rich kingdom simulation game demonstrating advanced 
 ## 🏗️ Architecture
 
 ### Database Design (MongoDB)
-
-
+
+```
 KevinSpehling (Database)
 ├── users (Collection)
 │   ├── _id: ObjectId
@@ -64,6 +64,7 @@ KevinSpehling (Database)
     ├── maxPopulation: int
     ├── happinessIncrease: float
     └── happinessDecrease: float
+```
 
 **Design Rationale**: Normalized schema with kingdoms stored in a separate collection (not embedded) to avoid data duplication and allow independent updates. Users store only kingdom IDs, which are resolved at runtime via `DatabaseService`.
 
@@ -147,8 +148,7 @@ Encourages strategic upgrades - expensive but worth it for income multiplication
 5. **Update Kingdom** - Trigger stats recalculation
 6. **Persist to DB** - `SaveGameAsync()` updates MongoDB
 7. **Refresh UI** - All bindings update automatically
-
-private async Task BuyMoreBuilding()
+private async Task BuyMoreBuilding()
 {
     if (CurrentGold >= CurrentCost && OwnedBuilding != null)
     {
@@ -264,4 +264,6 @@ dotnet run
 1. Create account (username min 3 chars, password min 6 chars)
 2. Automatically get first kingdom "Starship Alice" with 1 Farm
 3. Start building and growing your economy!
+
+
 
